@@ -8,7 +8,9 @@ signal continue_pressed
 signal buy_pressed(title: String)
 signal open_shop_pressed
 signal new_day_pressed
-signal title_start_pressed
+signal continue_game_pressed   # man hinh chinh: Choi tiep
+signal new_game_pressed        # da xem xong phan mo dau cua Van moi
+signal main_menu_requested     # menu tam dung: ve man hinh chinh
 
 const Data = preload("res://scripts/game_data.gd")
 const FONT_PATH := "res://assets/fonts/unifont_vi.otf"
@@ -51,7 +53,18 @@ var evening_label: Label
 var notebook_panel: PanelContainer
 var notebook_title: Label
 var notebook_list: VBoxContainer
-var title_root: Control = null
+var title_root: Control = null   # man hinh chinh / mo dau / xac nhan (che toan bo)
+var hud: Control
+var pause_panel: PanelContainer
+var settings_panel: PanelContainer
+var credits_panel: PanelContainer
+var confirm_panel: PanelContainer
+var _settings_back_to_pause := false
+var _press_scroll := {}   # vi tri cuon luc bat dau cham nut +1 (de phan biet vuot va bam)
+var _intro_pages: Array = []
+var _intro_i := 0
+var _intro_label: Label
+var _save_info := ""
 var _typing: Tween
 var _can_continue := false
 var font_body: Font = null
@@ -59,6 +72,7 @@ var font_bold: Font = null
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # menu van chay khi game tam dung
 	root = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -68,15 +82,17 @@ func _ready() -> void:
 	_build_hud()
 	_build_dialog()
 	_build_panels()
+	_build_menus()
 
 
 func buzz(ms: int = 25) -> void:
-	if OS.has_feature("mobile"):
+	if GameState.vibrate and OS.has_feature("mobile"):
 		Input.vibrate_handheld(ms)
 
 
 func busy() -> bool:
-	return title_root != null or dialog.visible or prep_panel.visible or evening_panel.visible or notebook_panel.visible
+	return title_root != null or dialog.visible or prep_panel.visible or evening_panel.visible \
+		or notebook_panel.visible or pause_panel.visible or settings_panel.visible or credits_panel.visible
 
 
 # ---------- Giao dien chung (theme) ----------
@@ -162,6 +178,11 @@ func _make_theme() -> Theme:
 	th.set_stylebox("pressed", "Button", _toon(PAPER_DARK, 16, 14, 2.0))
 	th.set_stylebox("disabled", "Button", _toon(Color(0.88, 0.84, 0.76), 16, 14, 0.0, Color(INK, 0.4)))
 	th.set_stylebox("focus", "Button", StyleBoxEmpty.new())
+	# thanh cuon pixel to, de thay va de keo bang ngon tay
+	th.set_stylebox("scroll", "VScrollBar", _sb(Color(INK, 0.12), INK, 0, 0, 0))
+	th.set_stylebox("grabber", "VScrollBar", _sb(WOOD, INK, 0, 0, 0))
+	th.set_stylebox("grabber_highlight", "VScrollBar", _sb(WOOD.lightened(0.15), INK, 0, 0, 0))
+	th.set_stylebox("grabber_pressed", "VScrollBar", _sb(WOOD.darkened(0.15), INK, 0, 0, 0))
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		th.set_color(c, "Button", INK)
 	th.set_color("font_disabled_color", "Button", Color(0.45, 0.38, 0.32, 0.7))
@@ -211,6 +232,10 @@ func _panel() -> PanelContainer:
 # ---------- Thanh tren ----------
 
 func _build_hud() -> void:
+	hud = Control.new()
+	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(hud)
 	var pill := PanelContainer.new()
 	var ps := _toon(Color(INK, 0.9), 0, 10, 0.0, Color(PAPER, 0.9))
 	ps.content_margin_left = 20
@@ -218,7 +243,7 @@ func _build_hud() -> void:
 	pill.add_theme_stylebox_override("panel", ps)
 	pill.position = Vector2(20, 14)
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(pill)
+	hud.add_child(pill)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -226,7 +251,7 @@ func _build_hud() -> void:
 	coins_label = _label(row, "", 26, LIGHT)
 	day_label = _label(row, "", 26, Color("f4d03f"))
 
-	info_label = _hud_label(root, "", 26)
+	info_label = _hud_label(hud, "", 26)
 	# dong thong bao nam o dong thu 2, duoi khung tien/gio -> khong bi de chu
 	info_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	info_label.offset_left = 24
@@ -234,15 +259,23 @@ func _build_hud() -> void:
 	info_label.offset_top = 84
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-	var book_btn := _button(root, "Sổ của ông", Vector2(200, 64), 24)
+	var pause_btn := _button(hud, "II", Vector2(64, 64), 24)
+	pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	pause_btn.offset_left = -84
+	pause_btn.offset_right = -20
+	pause_btn.offset_top = 12
+	pause_btn.offset_bottom = 76
+	pause_btn.pressed.connect(open_pause)
+
+	var book_btn := _button(hud, "Sổ của ông", Vector2(200, 64), 24)
 	book_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	book_btn.offset_left = -220
-	book_btn.offset_right = -20
+	book_btn.offset_left = -300
+	book_btn.offset_right = -100
 	book_btn.offset_top = 12
 	book_btn.offset_bottom = 76
 	book_btn.pressed.connect(open_notebook)
 
-	fps_label = _label(root, "", 16, Color(1, 1, 1, 0.55))
+	fps_label = _label(hud, "", 16, Color(1, 1, 1, 0.55))
 	fps_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	fps_label.offset_left = 8
 	fps_label.offset_top = -24
@@ -251,7 +284,9 @@ func _build_hud() -> void:
 func update_hud(stats: String, time_text: String) -> void:
 	coins_label.text = stats
 	day_label.text = time_text
-	fps_label.text = "FPS %d" % Engine.get_frames_per_second()
+	fps_label.visible = GameState.show_fps
+	if fps_label.visible:
+		fps_label.text = "FPS %d" % Engine.get_frames_per_second()
 
 
 func set_info(t: String) -> void:
@@ -394,7 +429,8 @@ func say(t: String) -> void:
 	if _typing != null:
 		_typing.kill()
 	_typing = create_tween()
-	_typing.tween_property(text_label, "visible_ratio", 1.0, clampf(t.length() * 0.025, 0.3, 2.5))
+	var per_char: float = GameState.TEXT_SPEEDS[GameState.text_speed]
+	_typing.tween_property(text_label, "visible_ratio", 1.0, clampf(t.length() * per_char, 0.2, 4.0))
 
 
 ## Neu chu dang chay: hien het va tra ve true.
@@ -460,6 +496,7 @@ func _build_panels() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_style_scroll(scroll)
 	v.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -472,6 +509,7 @@ func _build_panels() -> void:
 		cs.border_width_left = 12
 		cs.content_margin_left = 20
 		card.add_theme_stylebox_override("panel", cs)
+		card.mouse_filter = Control.MOUSE_FILTER_PASS  # de ngon tay vuot xuyen qua the -> danh sach cuon duoc
 		list.add_child(card)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 16)
@@ -486,7 +524,9 @@ func _build_panels() -> void:
 		count_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var buy := _button(row, "+1", Vector2(96, 56), 24)
 		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		buy.pressed.connect(_on_buy_button.bind(title))
+		buy.mouse_filter = Control.MOUSE_FILTER_PASS
+		buy.button_down.connect(_on_buy_down.bind(title, scroll))
+		buy.pressed.connect(_on_buy_button.bind(title, scroll))
 		stock_rows[title] = [count_l, buy]
 	var open_btn := _button(v, "Mở cửa tiệm", Vector2(0, 80), 30)
 	open_btn.pressed.connect(func() -> void: open_shop_pressed.emit())
@@ -511,6 +551,7 @@ func _build_panels() -> void:
 	var nscroll := ScrollContainer.new()
 	nscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_style_scroll(nscroll)
 	nb.add_child(nscroll)
 	notebook_list = VBoxContainer.new()
 	notebook_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -520,7 +561,14 @@ func _build_panels() -> void:
 	close_btn.pressed.connect(close_notebook)
 
 
-func _on_buy_button(title: String) -> void:
+func _on_buy_down(title: String, scroll: ScrollContainer) -> void:
+	_press_scroll[title] = scroll.scroll_vertical
+
+
+func _on_buy_button(title: String, scroll: ScrollContainer) -> void:
+	# neu ngon tay vua vuot de cuon danh sach thi khong tinh la bam mua
+	if absi(scroll.scroll_vertical - int(_press_scroll.get(title, scroll.scroll_vertical))) > 12:
+		return
 	buy_pressed.emit(title)
 
 
@@ -573,45 +621,376 @@ func close_notebook() -> void:
 	notebook_panel.visible = false
 
 
-# ---------- Man gioi thieu ----------
+func _style_scroll(sc: ScrollContainer) -> void:
+	sc.scroll_deadzone = 8  # vuot qua 8 diem anh moi tinh la cuon
+	sc.get_v_scroll_bar().custom_minimum_size.x = 18
 
-func show_title(button_text: String) -> void:
+
+# ---------- Man hinh chinh, mo dau, tam dung, cai dat, gioi thieu ----------
+
+const INTRO_PAGES := [
+	"Mùa mưa năm 1994.\n\nMột con phố cũ, hàng me già rợp bóng, tiếng chuông xe đạp leng keng mỗi sáng.",
+	"“Cháu thương,\n\nKhi cháu đọc lá thư này thì ông đã đi xa rồi. Ông để lại cho cháu tiệm sách nhỏ ở đầu phố, nơi ông đã ngồi suốt bốn mươi năm.”",
+	"“Tiệm đóng cửa cũng lâu, bụi đã phủ lên mấy kệ gỗ. Nhưng ông tin khách quen vẫn sẽ quay lại, chỉ chờ có người mở cửa.”",
+	"“Ông để lại cuốn sổ ghi chuyện từng người khách. Cháu cứ lắng nghe họ, rồi trao đúng cuốn sách cho đúng người. Mỗi lần như vậy, một trang sổ sẽ mở ra.\n\nThương cháu. Ông.”",
+	"Cách chơi\n\n• Buổi sáng: nhập thêm sách lên kệ.\n• Mở cửa: nghe khách kể, chọn cuốn sách hợp với họ.\n• Buổi tối: xem lại một ngày, rồi sang ngày mới.\n• Bấm \"Sổ của ông\" để đọc những trang đã mở.",
+]
+
+
+func _build_menus() -> void:
+	# Bang tam dung
+	pause_panel = PanelContainer.new()
+	pause_panel.set_anchors_preset(Control.PRESET_CENTER)
+	pause_panel.custom_minimum_size = Vector2(460, 0)
+	pause_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	root.add_child(pause_panel)
+	pause_panel.visible = false
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 14)
+	pause_panel.add_child(pv)
+	var pt := _label(pv, "Tạm dừng", 32, ACCENT)
+	pt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_button(pv, "Chơi tiếp", Vector2(0, 72), 26).pressed.connect(close_pause)
+	_button(pv, "Sổ của ông", Vector2(0, 72), 26).pressed.connect(_pause_notebook)
+	_button(pv, "Cài đặt", Vector2(0, 72), 26).pressed.connect(_pause_settings)
+	_button(pv, "Lưu và về màn hình chính", Vector2(0, 72), 26).pressed.connect(_pause_to_menu)
+
+	# Bang cai dat
+	settings_panel = _panel()
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 16)
+	settings_panel.add_child(sv)
+	_label(sv, "Cài đặt", 32, ACCENT)
+	_setting_row(sv, "Rung khi chạm", "vibrate")
+	_setting_row(sv, "Tốc độ chữ", "text_speed")
+	_setting_row(sv, "Hiện FPS (số khung hình/giây)", "show_fps")
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sv.add_child(sp)
+	_label(sv, "Âm thanh sẽ có ở bản sau.", 16, WOOD)
+	_button(sv, "Xong", Vector2(0, 72), 26).pressed.connect(close_settings)
+
+	# Bang gioi thieu (credits) - ten tac gia chi dat o day
+	credits_panel = _panel()
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 12)
+	credits_panel.add_child(cv)
+	_label(cv, "Giới thiệu", 32, ACCENT)
+	var cscroll := ScrollContainer.new()
+	cscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_style_scroll(cscroll)
+	cv.add_child(cscroll)
+	var ct := _label(cscroll, "The Little Bookshop\nTiệm sách nhỏ phố cũ\n\nThiết kế và phát triển: Trung Nguyen\n\nNhân vật pixel: tạo với PixelLab\nPhông chữ: GNU Unifont (SIL Open Font License)\nCông cụ: Godot Engine (giấy phép MIT)\n\nCảm ơn bạn đã ghé tiệm.", 26)
+	ct.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ct.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_button(cv, "Đóng", Vector2(0, 72), 26).pressed.connect(_close_credits)
+
+	# Hop xac nhan
+	confirm_panel = PanelContainer.new()
+	confirm_panel.set_anchors_preset(Control.PRESET_CENTER)
+	confirm_panel.custom_minimum_size = Vector2(620, 0)
+	confirm_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	confirm_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	root.add_child(confirm_panel)
+	confirm_panel.visible = false
+
+
+func _pause_notebook() -> void:
+	close_pause()
+	open_notebook()
+
+
+func _pause_settings() -> void:
+	pause_panel.visible = false
+	open_settings(true)
+
+
+func _pause_to_menu() -> void:
+	buzz(30)
+	pause_panel.visible = false
+	get_tree().paused = false
+	main_menu_requested.emit()
+
+
+func _close_credits() -> void:
+	buzz(15)
+	credits_panel.visible = false
+
+
+func _setting_text(key: String) -> String:
+	match key:
+		"vibrate":
+			return "Bật" if GameState.vibrate else "Tắt"
+		"text_speed":
+			return ["Chậm", "Vừa", "Nhanh"][GameState.text_speed]
+		"show_fps":
+			return "Bật" if GameState.show_fps else "Tắt"
+	return ""
+
+
+func _setting_row(parent: Node, text: String, key: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	parent.add_child(row)
+	var l := _label(row, text, 26)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var b := _button(row, _setting_text(key), Vector2(180, 64), 26)
+	b.pressed.connect(_on_setting.bind(key, b))
+
+
+func _on_setting(key: String, b: Button) -> void:
+	match key:
+		"vibrate":
+			GameState.vibrate = not GameState.vibrate
+		"text_speed":
+			GameState.text_speed = (GameState.text_speed + 1) % 3
+		"show_fps":
+			GameState.show_fps = not GameState.show_fps
+	b.text = _setting_text(key)
+	GameState.save_settings()
+	buzz(15)
+
+
+func _confirm(text: String, yes_text: String, on_yes: Callable) -> void:
+	for ch in confirm_panel.get_children():
+		ch.queue_free()
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 18)
+	confirm_panel.add_child(v)
+	var l := _label(v, text, 26)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(560, 0)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	v.add_child(row)
+	var no := _button(row, "Thôi", Vector2(0, 72), 26)
+	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	no.pressed.connect(_confirm_answer.bind(Callable()))
+	var yes := _button(row, yes_text, Vector2(0, 72), 26)
+	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	yes.add_theme_color_override("font_color", ACCENT)
+	yes.pressed.connect(_confirm_answer.bind(on_yes))
+	confirm_panel.move_to_front()
+	confirm_panel.visible = true
+
+
+func _confirm_answer(on_yes: Callable) -> void:
+	buzz(15)
+	confirm_panel.visible = false
+	if on_yes.is_valid():
+		on_yes.call()
+
+
+func _clear_title_root() -> void:
+	if title_root != null:
+		title_root.queue_free()
+		title_root = null
+
+
+## Man hinh chinh. save_info = "" neu chua co ban luu.
+func show_main_menu(save_info: String) -> void:
+	_clear_title_root()
+	close_dialog()
 	prep_panel.visible = false
+	evening_panel.visible = false
+	notebook_panel.visible = false
+	hud.visible = false
 	title_root = Control.new()
 	title_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(title_root)
+	# lop toi ben trai de chu noi, ben phai van thay tiem
 	var shade := ColorRect.new()
-	shade.color = Color(0.1, 0.08, 0.07, 0.55)
+	shade.color = Color(0.1, 0.08, 0.07, 0.45)
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	title_root.add_child(shade)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	title_root.add_child(center)
+	var side := ColorRect.new()
+	side.color = Color(0.1, 0.08, 0.07, 0.5)
+	side.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	side.offset_right = 560
+	title_root.add_child(side)
+
 	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	v.offset_left = 70
+	v.offset_right = 490
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_theme_constant_override("separation", 18)
-	center.add_child(v)
-	var icon := TextureRect.new()
-	icon.texture = load("res://icon.svg")
-	icon.custom_minimum_size = Vector2(180, 180)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	v.add_child(icon)
-	var t := _hud_label(v, "The Little Bookshop", 64)
-	if font_bold != null:
-		t.add_theme_font_override("font", font_bold)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 14)
+	title_root.add_child(v)
+	var t := _hud_label(v, "The Little\nBookshop", 64)
 	t.add_theme_color_override("font_color", Color("f4d03f"))
-	var start := _button(v, button_text, Vector2(340, 84), 28)
-	start.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	start.pressed.connect(_on_title_button)
+	var sub := _hud_label(v, "Tiệm sách nhỏ phố cũ", 32)
+	sub.add_theme_color_override("font_color", LIGHT)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 18)
+	v.add_child(gap)
+
+	_save_info = save_info
+	if save_info != "":
+		var cont := _button(v, "Chơi tiếp", Vector2(0, 64), 26)
+		cont.pressed.connect(_on_continue_game)
+		var info := _hud_label(v, save_info, 16)
+		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var newb := _button(v, "Ván mới", Vector2(0, 64), 26)
+	newb.pressed.connect(_on_new_game_button)
+	_button(v, "Cài đặt", Vector2(0, 64), 26).pressed.connect(open_settings.bind(false))
+	_button(v, "Giới thiệu", Vector2(0, 64), 26).pressed.connect(_open_credits)
+	if OS.get_name() == "Android":  # iOS khong cho app tu thoat
+		_button(v, "Thoát", Vector2(0, 64), 26).pressed.connect(get_tree().quit)
+	title_root.modulate.a = 0.0
+	create_tween().tween_property(title_root, "modulate:a", 1.0, 0.4)
 
 
-func _on_title_button() -> void:
+func _on_continue_game() -> void:
 	buzz(40)
+	_fade_out_title()
+	continue_game_pressed.emit()
+
+
+func _on_new_game_button() -> void:
+	buzz(25)
+	if _save_info != "":
+		_confirm("Bắt đầu ván mới?\nTiến trình đang lưu (%s) sẽ bị xoá." % _save_info, "Xoá và chơi lại", show_intro)
+	else:
+		show_intro()
+
+
+func _open_credits() -> void:
+	buzz(15)
+	credits_panel.move_to_front()
+	credits_panel.visible = true
+
+
+func _fade_out_title() -> void:
 	var r := title_root
 	title_root = null
+	hud.visible = true
 	var tw := create_tween()
-	tw.tween_property(r, "modulate:a", 0.0, 0.5)
+	tw.tween_property(r, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(r.queue_free)
-	title_start_pressed.emit()
+
+
+## Phan mo dau cua Van moi: vai trang chu tren nen tiem toi, cham de qua trang.
+func show_intro() -> void:
+	_clear_title_root()
+	hud.visible = false
+	title_root = Control.new()
+	title_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title_root.gui_input.connect(_on_intro_input)
+	root.add_child(title_root)
+	var black := ColorRect.new()
+	black.color = Color("120d0b")
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_root.add_child(black)
+	# nen tiem mo, phong to cham cham
+	var bg := TextureRect.new()
+	bg.texture = load("res://assets/art/shop_bg.png")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.modulate = Color(0.45, 0.4, 0.38)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_root.add_child(bg)
+	bg.pivot_offset = get_viewport().get_visible_rect().size / 2.0
+	var zoom := create_tween()
+	zoom.bind_node(bg)
+	zoom.tween_property(bg, "scale", Vector2(1.12, 1.12), 40.0)
+
+	var paper := PanelContainer.new()
+	paper.set_anchors_preset(Control.PRESET_CENTER)
+	paper.custom_minimum_size = Vector2(820, 380)
+	paper.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	paper.grow_vertical = Control.GROW_DIRECTION_BOTH
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_root.add_child(paper)
+	var pv := VBoxContainer.new()
+	pv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	paper.add_child(pv)
+	_intro_label = _label(pv, "", 32)
+	_intro_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_intro_label.add_theme_constant_override("line_spacing", 6)
+	_intro_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var hint := _label(pv, "chạm để tiếp  »", 16, ACCENT)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var blink := create_tween().set_loops()
+	blink.bind_node(hint)
+	blink.tween_property(hint, "modulate:a", 0.4, 0.55)
+	blink.tween_property(hint, "modulate:a", 1.0, 0.55)
+
+	var skip := _button(title_root, "Bỏ qua", Vector2(160, 60), 24)
+	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	skip.offset_left = -180
+	skip.offset_right = -20
+	skip.offset_top = 16
+	skip.offset_bottom = 76
+	skip.pressed.connect(_end_intro)
+
+	_intro_i = 0
+	_show_intro_page()
+
+
+func _show_intro_page() -> void:
+	_intro_label.text = INTRO_PAGES[_intro_i]
+	_intro_label.visible_ratio = 0.0
+	if _typing != null:
+		_typing.kill()
+	_typing = create_tween()
+	var per_char: float = GameState.TEXT_SPEEDS[GameState.text_speed]
+	_typing.tween_property(_intro_label, "visible_ratio", 1.0, clampf(_intro_label.text.length() * per_char, 0.3, 5.0))
+
+
+func _on_intro_input(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	buzz(15)
+	if _intro_label.visible_ratio < 1.0:
+		if _typing != null:
+			_typing.kill()
+		_intro_label.visible_ratio = 1.0
+		return
+	_intro_i += 1
+	if _intro_i >= INTRO_PAGES.size():
+		_end_intro()
+	else:
+		_show_intro_page()
+
+
+func _end_intro() -> void:
+	if title_root == null:
+		return
+	buzz(40)
+	_fade_out_title()
+	new_game_pressed.emit()
+
+
+func open_pause() -> void:
+	if title_root != null or pause_panel.visible:
+		return
+	buzz(20)
+	pause_panel.move_to_front()
+	pause_panel.visible = true
+	get_tree().paused = true  # dung khach di lai va dong ho
+
+
+func close_pause() -> void:
+	buzz(15)
+	pause_panel.visible = false
+	get_tree().paused = false
+
+
+func open_settings(from_pause: bool) -> void:
+	buzz(15)
+	_settings_back_to_pause = from_pause
+	settings_panel.move_to_front()
+	settings_panel.visible = true
+
+
+func close_settings() -> void:
+	buzz(15)
+	settings_panel.visible = false
+	if _settings_back_to_pause:
+		pause_panel.visible = true

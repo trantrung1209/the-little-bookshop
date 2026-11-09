@@ -43,13 +43,19 @@ func _ready() -> void:
 	ui.buy_pressed.connect(_on_buy)
 	ui.open_shop_pressed.connect(_on_open_shop)
 	ui.new_day_pressed.connect(_on_new_day)
-	ui.title_start_pressed.connect(_on_title_start)
-	GameState.load_game()
-	_start_prep()
-	var label := "Bắt đầu"
+	ui.continue_game_pressed.connect(_on_continue_game)
+	ui.new_game_pressed.connect(_on_new_game)
+	ui.main_menu_requested.connect(_on_main_menu)
+	_show_main_menu()
+
+
+func _show_main_menu() -> void:
+	GameState.in_game = false
+	var info := ""
 	if GameState.has_save():
-		label = "Chơi tiếp · Ngày %d" % GameState.day
-	ui.show_title(label)
+		GameState.load_game()
+		info = "Ngày %d · %d tiền · %d trang sổ" % [GameState.day, GameState.coins, GameState.pages.size()]
+	ui.show_main_menu(info)
 
 
 func _process(delta: float) -> void:
@@ -78,9 +84,24 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # ---------- Ngay lam viec ----------
 
-func _on_title_start() -> void:
-	if phase == Phase.PREP:
-		ui.show_prep()
+func _on_continue_game() -> void:
+	GameState.load_game()
+	GameState.in_game = true
+	_start_prep()
+
+
+func _on_new_game() -> void:
+	GameState.new_game()
+	GameState.in_game = true
+	_start_prep()
+
+
+func _on_main_menu() -> void:
+	# luu roi tai lai toan bo canh: xoa sach khach dang di, hop thoai... cho gon
+	if GameState.in_game:
+		GameState.save_game()
+	GameState.in_game = false
+	get_tree().reload_current_scene()
 
 
 func _start_prep() -> void:
@@ -118,12 +139,13 @@ func _start_evening() -> void:
 		GameState.day, GameState.coins - day_coins_start, served_today,
 		GameState.hits - day_hits_start, served_today, GameState.total_stock(), GameState.coins])
 	ui.set_info("Tiệm đã đóng cửa")
+	# luu san sang ngay moi: thoat game luc nay thi lan sau vao la ngay ke tiep
+	GameState.day += 1
 	GameState.save_game()
 
 
 func _on_new_day() -> void:
 	ui.buzz(40)
-	GameState.day += 1
 	_start_prep()
 	GameState.save_game()
 

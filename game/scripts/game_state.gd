@@ -17,6 +17,41 @@ var customer_index := 0
 var npc_progress := {}
 var pages: Array = []
 
+# ---- Cai dat (luu rieng, khong mat khi choi van moi) ----
+const SETTINGS_PATH := "user://settings.cfg"
+const TEXT_SPEEDS := [0.045, 0.025, 0.012]  # giay moi chu: Cham / Vua / Nhanh
+var vibrate := true
+var text_speed := 1
+var show_fps := false
+var in_game := false  # true khi dang choi (khong phai o menu)
+
+
+func load_settings() -> void:
+	var cf := ConfigFile.new()
+	if cf.load(SETTINGS_PATH) != OK:
+		return
+	vibrate = bool(cf.get_value("game", "vibrate", true))
+	text_speed = clampi(int(cf.get_value("game", "text_speed", 1)), 0, 2)
+	show_fps = bool(cf.get_value("game", "show_fps", false))
+
+
+func save_settings() -> void:
+	var cf := ConfigFile.new()
+	cf.set_value("game", "vibrate", vibrate)
+	cf.set_value("game", "text_speed", text_speed)
+	cf.set_value("game", "show_fps", show_fps)
+	cf.save(SETTINGS_PATH)
+
+
+func _ready() -> void:
+	load_settings()
+
+
+## Xoa ban luu cu va bat dau lai tu ngay 1.
+func new_game() -> void:
+	reset()
+	save_game()
+
 
 func reset() -> void:
 	day = 1
@@ -78,7 +113,8 @@ func load_game() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
-		save_game()
+		if in_game:  # dang o man hinh chinh thi khong tu tao ban luu
+			save_game()
 
 
 # ---------- Kho sach ----------
