@@ -1,0 +1,17 @@
+# Mac
+.DS_Store
+
+# Godot: thu muc tam va mat khau ky app
+.godot/
+export_credentials.cfg
+
+# File cai dat (qua nang cho GitHub)
+Godot_*.zip
+
+# Ban build: khong dua len GitHub
+*.apk
+*.apk.idsig
+*.idsig
+*.aab
+*.ipa
+*.keystore

@@ -1,0 +1,6 @@
+Font dang dung trong game: Unifont (GNU Unifont, ban rut gon chi giu chu Latin + tieng Viet).
+Tac gia: Roman Czyborra, Paul Hardy va cong su. Giay phep kep: SIL Open Font License 1.1 / GNU GPL 2+ voi Font Embedding Exception - duoc dung mien phi, ke ca thuong mai.
+Khi phat hanh: ghi "Font Unifont - SIL Open Font License" trong muc Credits.
+
+Font cu (khong con dung): Lora - SIL Open Font License 1.1.
+Ban day du giay phep OFL: https://openfontlicense.org
