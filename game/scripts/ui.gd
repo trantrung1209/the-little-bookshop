@@ -11,6 +11,7 @@ signal new_day_pressed
 signal continue_game_pressed   # man hinh chinh: Choi tiep
 signal new_game_pressed        # da xem xong phan mo dau cua Van moi
 signal main_menu_requested     # menu tam dung: ve man hinh chinh
+signal ending_finished         # xem xong doan ket + credits
 
 const Data = preload("res://scripts/game_data.gd")
 const FONT_PATH := "res://assets/fonts/unifont_vi.otf"
@@ -65,6 +66,8 @@ var _intro_pages: Array = []
 var _intro_i := 0
 var _intro_label: Label
 var _save_info := ""
+var _story_pages: Array = []
+var _story_mode := ""   # "intro" hoac "ending"
 var _typing: Tween
 var _can_continue := false
 var font_body: Font = null
@@ -213,6 +216,7 @@ func _button(parent: Node, text: String, min_size: Vector2 = Vector2(240, 80), f
 	b.text = text
 	b.custom_minimum_size = min_size
 	b.add_theme_font_size_override("font_size", _px(font_size))
+	b.pressed.connect(Audio.sfx.bind("click", 0.6))
 	parent.add_child(b)
 	return b
 
@@ -613,6 +617,7 @@ func open_notebook() -> void:
 		for _k in range(n_pages - opened):
 			_label(notebook_list, "• …trang chưa mở", 22, Color(INK, 0.4))
 	notebook_title.text = "Sổ của ông · đã mở %d/%d trang" % [GameState.pages.size(), total]
+	Audio.sfx("page_flip")
 	notebook_panel.visible = true
 
 
@@ -628,6 +633,8 @@ func _style_scroll(sc: ScrollContainer) -> void:
 
 # ---------- Man hinh chinh, mo dau, tam dung, cai dat, gioi thieu ----------
 
+const VOLUME_TEXT := ["Tắt", "25%", "50%", "75%", "100%"]
+
 const INTRO_PAGES := [
 	"Mùa mưa năm 1994.\n\nMột con phố cũ, hàng me già rợp bóng, tiếng chuông xe đạp leng keng mỗi sáng.",
 	"“Cháu thương,\n\nKhi cháu đọc lá thư này thì ông đã đi xa rồi. Ông để lại cho cháu tiệm sách nhỏ ở đầu phố, nơi ông đã ngồi suốt bốn mươi năm.”",
@@ -635,6 +642,17 @@ const INTRO_PAGES := [
 	"“Ông để lại cuốn sổ ghi chuyện từng người khách. Cháu cứ lắng nghe họ, rồi trao đúng cuốn sách cho đúng người. Mỗi lần như vậy, một trang sổ sẽ mở ra.\n\nThương cháu. Ông.”",
 	"Cách chơi\n\n• Buổi sáng: nhập thêm sách lên kệ.\n• Mở cửa: nghe khách kể, chọn cuốn sách hợp với họ.\n• Buổi tối: xem lại một ngày, rồi sang ngày mới.\n• Bấm \"Sổ của ông\" để đọc những trang đã mở.",
 ]
+
+
+const ENDING_PAGES := [
+	"Một sáng thứ Bảy, chuông cửa reo sớm hơn mọi ngày.",
+	"Chị Mai ôm vào một bó cúc vàng, cắm vào chiếc bình trên quầy.\n\n“Tiệm hoa của mình mở rồi, ngay đầu hẻm. Từ giờ bình này để mình lo nhé.”",
+	"Chiều đến, ông Tư kê bàn cờ cạnh cửa sổ, đặt quân Tướng về đúng chỗ của nó.\n\n“Nào, cháu đi trước đi. Ngày xưa ông cháu cũng toàn nhường tôi đi trước.”",
+	"Nam chạy vào, tay ôm xấp bản thảo còn thơm mùi mực. Trang đầu tiên ghi:\n\n“Tặng ông chủ tiệm sách đầu phố, người đã bảo tôi: Viết tiếp đi.”",
+	"Cuốn sổ của ông giờ không còn trang nào để trống.\n\nNhưng tiệm sách thì vẫn còn rất nhiều ngày để viết tiếp.",
+]
+
+const CREDITS_TEXT := "The Little Bookshop\nTiệm sách nhỏ phố cũ\n\n\nThiết kế, viết truyện và phát triển\nTrung Nguyen\n\n\nNhân vật pixel\ntạo với PixelLab\n\nNhạc nền\n\"Hush Hamlet\", \"Apple Cider\"\ncủa Zane Little Music (CC0)\n\nTiếng động\ntự tạo cho game\n\nPhông chữ\nGNU Unifont (SIL Open Font License)\n\nCông cụ\nGodot Engine (giấy phép MIT)\n\n\nCảm ơn bạn đã ghé tiệm."
 
 
 func _build_menus() -> void:
@@ -664,11 +682,12 @@ func _build_menus() -> void:
 	_label(sv, "Cài đặt", 32, ACCENT)
 	_setting_row(sv, "Rung khi chạm", "vibrate")
 	_setting_row(sv, "Tốc độ chữ", "text_speed")
+	_setting_row(sv, "Nhạc nền", "music")
+	_setting_row(sv, "Tiếng động", "sfx")
 	_setting_row(sv, "Hiện FPS (số khung hình/giây)", "show_fps")
 	var sp := Control.new()
 	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sv.add_child(sp)
-	_label(sv, "Âm thanh sẽ có ở bản sau.", 16, WOOD)
 	_button(sv, "Xong", Vector2(0, 72), 26).pressed.connect(close_settings)
 
 	# Bang gioi thieu (credits) - ten tac gia chi dat o day
@@ -682,7 +701,7 @@ func _build_menus() -> void:
 	cscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_style_scroll(cscroll)
 	cv.add_child(cscroll)
-	var ct := _label(cscroll, "The Little Bookshop\nTiệm sách nhỏ phố cũ\n\nThiết kế và phát triển: Trung Nguyen\n\nNhân vật pixel: tạo với PixelLab\nPhông chữ: GNU Unifont (SIL Open Font License)\nCông cụ: Godot Engine (giấy phép MIT)\n\nCảm ơn bạn đã ghé tiệm.", 26)
+	var ct := _label(cscroll, CREDITS_TEXT, 26)
 	ct.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ct.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button(cv, "Đóng", Vector2(0, 72), 26).pressed.connect(_close_credits)
@@ -727,6 +746,10 @@ func _setting_text(key: String) -> String:
 			return ["Chậm", "Vừa", "Nhanh"][GameState.text_speed]
 		"show_fps":
 			return "Bật" if GameState.show_fps else "Tắt"
+		"music":
+			return VOLUME_TEXT[GameState.music_volume]
+		"sfx":
+			return VOLUME_TEXT[GameState.sfx_volume]
 	return ""
 
 
@@ -749,6 +772,12 @@ func _on_setting(key: String, b: Button) -> void:
 			GameState.text_speed = (GameState.text_speed + 1) % 3
 		"show_fps":
 			GameState.show_fps = not GameState.show_fps
+		"music":
+			GameState.music_volume = (GameState.music_volume + 1) % VOLUME_TEXT.size()
+			Audio.apply_volume()
+		"sfx":
+			GameState.sfx_volume = (GameState.sfx_volume + 1) % VOLUME_TEXT.size()
+			Audio.sfx("coin")  # nghe thu muc am luong moi
 	b.text = _setting_text(key)
 	GameState.save_settings()
 	buzz(15)
@@ -798,6 +827,7 @@ func show_main_menu(save_info: String) -> void:
 	evening_panel.visible = false
 	notebook_panel.visible = false
 	hud.visible = false
+	Audio.play_music("menu")
 	title_root = Control.new()
 	title_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(title_root)
@@ -874,6 +904,22 @@ func _fade_out_title() -> void:
 
 ## Phan mo dau cua Van moi: vai trang chu tren nen tiem toi, cham de qua trang.
 func show_intro() -> void:
+	Audio.play_music("menu")
+	_show_story(INTRO_PAGES, "intro")
+
+
+## Doan ket: hien khi mo het so cua ong, roi chay chu Credits.
+func show_ending() -> void:
+	Audio.play_music("menu")
+	_show_story(ENDING_PAGES, "ending")
+
+
+func _show_story(story: Array, mode: String) -> void:
+	_story_pages = story
+	_story_mode = mode
+	close_dialog()
+	prep_panel.visible = false
+	evening_panel.visible = false
 	_clear_title_root()
 	hud.visible = false
 	title_root = Control.new()
@@ -928,12 +974,15 @@ func show_intro() -> void:
 	skip.offset_bottom = 76
 	skip.pressed.connect(_end_intro)
 
+	if mode == "ending":
+		skip.text = "Xem Credits"
+		skip.offset_left = -240
 	_intro_i = 0
 	_show_intro_page()
 
 
 func _show_intro_page() -> void:
-	_intro_label.text = INTRO_PAGES[_intro_i]
+	_intro_label.text = _story_pages[_intro_i]
 	_intro_label.visible_ratio = 0.0
 	if _typing != null:
 		_typing.kill()
@@ -953,7 +1002,8 @@ func _on_intro_input(event: InputEvent) -> void:
 		_intro_label.visible_ratio = 1.0
 		return
 	_intro_i += 1
-	if _intro_i >= INTRO_PAGES.size():
+	Audio.sfx("page_flip", 0.7)
+	if _intro_i >= _story_pages.size():
 		_end_intro()
 	else:
 		_show_intro_page()
@@ -963,8 +1013,69 @@ func _end_intro() -> void:
 	if title_root == null:
 		return
 	buzz(40)
+	if _story_mode == "ending":
+		_roll_credits()
+		return
 	_fade_out_title()
 	new_game_pressed.emit()
+
+
+## Chu Credits chay tu duoi len tren nen toi; cuoi cung la nut tiep tuc mo tiem.
+func _roll_credits() -> void:
+	_clear_title_root()
+	title_root = Control.new()
+	title_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(title_root)
+	var black := ColorRect.new()
+	black.color = Color("120d0b")
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title_root.add_child(black)
+	var vs := get_viewport().get_visible_rect().size
+	var c := _hud_label(title_root, CREDITS_TEXT, 32)
+	c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	c.position = Vector2(0, vs.y)
+	c.size = Vector2(vs.x, 0)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := c.get_combined_minimum_size().y
+	var roll := create_tween()
+	roll.bind_node(c)
+	roll.tween_property(c, "position:y", -h, (vs.y + h) / 55.0)  # 55 diem anh moi giay
+	roll.tween_callback(_credits_done)
+	var skip := _button(title_root, "Bỏ qua", Vector2(160, 60), 24)
+	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	skip.offset_left = -180
+	skip.offset_right = -20
+	skip.offset_top = 16
+	skip.offset_bottom = 76
+	skip.pressed.connect(_credits_done)
+
+
+func _credits_done() -> void:
+	if title_root == null or title_root.has_node("Done"):
+		return
+	for ch in title_root.get_children():
+		if ch is Label or ch is Button:
+			ch.queue_free()
+	var v := VBoxContainer.new()
+	v.name = "Done"
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 24)
+	title_root.add_child(v)
+	var t := _hud_label(v, "Tiệm sách nhỏ vẫn sáng đèn mỗi ngày.", 32)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.add_theme_color_override("font_color", Color("f4d03f"))
+	var b := _button(v, "Tiếp tục mở tiệm", Vector2(380, 72), 26)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.pressed.connect(_finish_ending)
+	v.modulate.a = 0.0
+	create_tween().tween_property(v, "modulate:a", 1.0, 0.8)
+
+
+func _finish_ending() -> void:
+	buzz(40)
+	_fade_out_title()
+	ending_finished.emit()
 
 
 func open_pause() -> void:

@@ -15,3 +15,6 @@ Godot_*.zip
 *.aab
 *.ipa
 *.keystore
+
+# File nhac goc qua nang (ban dung trong game nam o game/assets/audio)
+art_goc/*.wav

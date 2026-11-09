@@ -1,0 +1,11 @@
+Nguon am thanh - The Little Bookshop
+
+music_menu.ogg  = "Hush Hamlet" (ban loop) - Zane Little Music - CC0
+                  https://opengameart.org/content/hush-hamlet
+music_shop.ogg  = "Apple Cider" - Zane Little Music - CC0
+                  https://opengameart.org/content/apple-cider
+CC0: duoc dung tu do ke ca ban thuong mai, khong bat buoc ghi ten
+(game van ghi ten tac gia trong Credits de cam on).
+
+door_bell, coin, page_flip, click, book_place, new_page (.wav):
+tu tao bang code (tong hop am thanh), thuoc ve du an.

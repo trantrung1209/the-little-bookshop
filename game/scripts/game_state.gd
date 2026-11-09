@@ -16,6 +16,7 @@ var stock := {}
 var customer_index := 0
 var npc_progress := {}
 var pages: Array = []
+var ending_seen := false
 
 # ---- Cai dat (luu rieng, khong mat khi choi van moi) ----
 const SETTINGS_PATH := "user://settings.cfg"
@@ -23,6 +24,8 @@ const TEXT_SPEEDS := [0.045, 0.025, 0.012]  # giay moi chu: Cham / Vua / Nhanh
 var vibrate := true
 var text_speed := 1
 var show_fps := false
+var music_volume := 3   # chi so trong Audio.VOLUME_STEPS (3 = 75%)
+var sfx_volume := 4
 var in_game := false  # true khi dang choi (khong phai o menu)
 
 
@@ -33,6 +36,8 @@ func load_settings() -> void:
 	vibrate = bool(cf.get_value("game", "vibrate", true))
 	text_speed = clampi(int(cf.get_value("game", "text_speed", 1)), 0, 2)
 	show_fps = bool(cf.get_value("game", "show_fps", false))
+	music_volume = clampi(int(cf.get_value("audio", "music", 3)), 0, 4)
+	sfx_volume = clampi(int(cf.get_value("audio", "sfx", 4)), 0, 4)
 
 
 func save_settings() -> void:
@@ -40,6 +45,8 @@ func save_settings() -> void:
 	cf.set_value("game", "vibrate", vibrate)
 	cf.set_value("game", "text_speed", text_speed)
 	cf.set_value("game", "show_fps", show_fps)
+	cf.set_value("audio", "music", music_volume)
+	cf.set_value("audio", "sfx", sfx_volume)
 	cf.save(SETTINGS_PATH)
 
 
@@ -61,6 +68,7 @@ func reset() -> void:
 	customer_index = 0
 	npc_progress = {}
 	pages = []
+	ending_seen = false
 	stock = {}
 	for b in Data.BOOKS:
 		stock[b["title"]] = 2
@@ -74,6 +82,7 @@ func save_game() -> void:
 	var d := {
 		"version": SAVE_VERSION, "day": day, "coins": coins, "hits": hits, "served": served,
 		"stock": stock, "customer_index": customer_index, "npc_progress": npc_progress, "pages": pages,
+		"ending_seen": ending_seen,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f != null:
@@ -106,6 +115,7 @@ func load_game() -> void:
 	if typeof(np) == TYPE_DICTIONARY:
 		for k in np:
 			npc_progress[k] = int(np[k])
+	ending_seen = bool(d.get("ending_seen", false))
 	var pg = d.get("pages", [])
 	if typeof(pg) == TYPE_ARRAY:
 		pages = pg
@@ -147,6 +157,14 @@ func buy(title: String) -> bool:
 
 
 # ---------- Khach hang va tu van ----------
+
+## true khi moi NPC co cot truyen deu da mo het trang so -> du dieu kien xem doan ket.
+func story_complete() -> bool:
+	for c in Data.CUSTOMERS:
+		if c.has("visits") and int(npc_progress.get(c["name"], 0)) < c["visits"].size():
+			return false
+	return true
+
 
 func next_customer() -> Dictionary:
 	var n: int = Data.CUSTOMERS.size()

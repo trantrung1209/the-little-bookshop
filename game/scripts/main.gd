@@ -46,6 +46,7 @@ func _ready() -> void:
 	ui.continue_game_pressed.connect(_on_continue_game)
 	ui.new_game_pressed.connect(_on_new_game)
 	ui.main_menu_requested.connect(_on_main_menu)
+	ui.ending_finished.connect(_on_ending_finished)
 	_show_main_menu()
 
 
@@ -87,6 +88,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_continue_game() -> void:
 	GameState.load_game()
 	GameState.in_game = true
+	if GameState.story_complete() and not GameState.ending_seen:
+		ui.show_ending()  # thoat game luc toi dung ngay mo het so: van duoc xem doan ket
+		return
 	_start_prep()
 
 
@@ -105,6 +109,7 @@ func _on_main_menu() -> void:
 
 
 func _start_prep() -> void:
+	Audio.play_music("shop")
 	phase = Phase.PREP
 	minutes = 480.0
 	day_coins_start = GameState.coins
@@ -119,6 +124,7 @@ func _start_prep() -> void:
 func _on_buy(title: String) -> void:
 	if GameState.buy(title):
 		ui.buzz()
+		Audio.sfx("book_place")
 		ui.refresh_stock()
 
 
@@ -146,6 +152,15 @@ func _start_evening() -> void:
 
 func _on_new_day() -> void:
 	ui.buzz(40)
+	if GameState.story_complete() and not GameState.ending_seen:
+		ui.show_ending()  # mo het so cua ong -> doan ket truoc khi sang ngay moi
+		return
+	_start_prep()
+
+
+func _on_ending_finished() -> void:
+	GameState.ending_seen = true
+	GameState.save_game()
 	_start_prep()
 	GameState.save_game()
 
@@ -165,6 +180,7 @@ func _spawn_customer() -> void:
 	var stand: Vector2 = shelf["stand"]
 	ui.set_info("%s vào tiệm" % current_customer["name"])
 	var tw := create_tween()
+	tw.tween_callback(Audio.sfx.bind("door_bell", 0.8))
 	tw.tween_interval(0.4)  # cho hien dan o cua
 	_walk(tw, customer, Layout.DOOR, stand)
 	tw.tween_interval(1.8)  # dung xem sach
@@ -177,6 +193,7 @@ func _customer_leave() -> void:
 	var tw := create_tween()
 	tw.tween_interval(0.3)
 	_walk(tw, leaving, Layout.COUNTER_STAND, Layout.DOOR)
+	tw.tween_callback(Audio.sfx.bind("door_bell", 0.5))
 	tw.tween_callback(view.remove_person.bind(leaving))
 	tw.tween_interval(1.5)
 	tw.tween_callback(_after_customer_left)
@@ -269,6 +286,9 @@ func _on_choice(i: int) -> void:
 	customer_waiting = false
 	var bk: Dictionary = choices[i]
 	var res := GameState.record_result(current_customer, current_visit, bk)
+	Audio.sfx("coin")
+	if res["new_page"]:
+		create_tween().tween_interval(0.7).finished.connect(Audio.sfx.bind("new_page"))
 	ui.hide_choices()
 	ui.show_hint("Bạn đã gợi ý: %s  (+%d tiền)" % [bk["title"], res["reward"]])
 	ui.set_portrait(_portrait(res["mood"]))
