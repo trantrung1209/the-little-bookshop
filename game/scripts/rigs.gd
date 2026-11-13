@@ -30,4 +30,17 @@ const RIGS := {
 	"walkin_husband": {
 		"native": true,
 	},
+	"co_lien": {
+		"native": true,
+	},
+	"chu_duc": {
+		"native": true,
+	},
+	"be_tho": {
+		"native": true,
+		"scale": 0.8,  # tre con: nho hon nguoi lon (5 x 0.8 = 4 diem anh moi o pixel)
+	},
+	"chu_ba": {
+		"native": true,
+	},
 }

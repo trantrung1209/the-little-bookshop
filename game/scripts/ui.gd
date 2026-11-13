@@ -6,6 +6,9 @@ extends CanvasLayer
 signal choice_made(index: int)
 signal continue_pressed
 signal buy_pressed(title: String)
+signal upgrade_pressed(id: String)
+signal rare_pressed(title: String)
+signal feature_pressed(title: String)
 signal open_shop_pressed
 signal new_day_pressed
 signal continue_game_pressed   # man hinh chinh: Choi tiep
@@ -40,6 +43,7 @@ var dialog: Control
 var box_panel: PanelContainer
 var portrait_frame: PanelContainer
 var portrait: TextureRect
+var emote: TextureRect
 var name_label: Label
 var text_label: Label
 var hint_label: Label
@@ -49,6 +53,31 @@ var choice_buttons: Array = []
 var prep_panel: PanelContainer
 var prep_title: Label
 var stock_rows := {}
+var upgrade_rows := {}     # id -> [nut mua, nhan ten]
+var prep_sub: Label
+var book_scroll: ScrollContainer
+var upgrade_scroll: ScrollContainer
+var tab_books: Button
+var tab_upgrades: Button
+var prep_event: Label
+var seller_box: VBoxContainer
+var nb_tabs: Array = []
+var _nb_tab := 0
+var _toast: PanelContainer
+var open_btn: Button
+var book_btn: Button
+var _seller_open := false
+# huong dan choi lan dau
+var tut_frame: ReferenceRect
+var tut_box: PanelContainer
+var tut_label: Label
+var _tut_target: Control = null
+var _tut_t := 0.0
+var _menu_fx: Control = null
+var _fx_drops: Array = []
+var _fx_leaves: Array = []
+var _menu_items: Array = []
+var _press_label: Label = null
 var evening_panel: PanelContainer
 var evening_label: Label
 var notebook_panel: PanelContainer
@@ -68,6 +97,8 @@ var _intro_label: Label
 var _save_info := ""
 var _story_pages: Array = []
 var _story_mode := ""   # "intro" hoac "ending"
+var _story_images: Array = []
+var _intro_bg: TextureRect
 var _typing: Tween
 var _can_continue := false
 var font_body: Font = null
@@ -86,6 +117,7 @@ func _ready() -> void:
 	_build_dialog()
 	_build_panels()
 	_build_menus()
+	_build_tutorial()
 
 
 func buzz(ms: int = 25) -> void:
@@ -224,8 +256,8 @@ func _button(parent: Node, text: String, min_size: Vector2 = Vector2(240, 80), f
 func _panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	p.set_anchors_preset(Control.PRESET_FULL_RECT)
-	p.offset_left = 200
-	p.offset_right = -200
+	p.offset_left = 150
+	p.offset_right = -150
 	p.offset_top = 90
 	p.offset_bottom = -30
 	root.add_child(p)
@@ -271,7 +303,7 @@ func _build_hud() -> void:
 	pause_btn.offset_bottom = 76
 	pause_btn.pressed.connect(open_pause)
 
-	var book_btn := _button(hud, "Sổ của ông", Vector2(200, 64), 24)
+	book_btn = _button(hud, "Sổ của ông", Vector2(200, 64), 24)
 	book_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	book_btn.offset_left = -300
 	book_btn.offset_right = -100
@@ -297,6 +329,29 @@ func set_info(t: String) -> void:
 	info_label.text = t
 
 
+## Thong bao nho o giua phia tren man hinh (vd. danh hieu moi), tu an sau vai giay.
+func toast(text: String) -> void:
+	if _toast != null and is_instance_valid(_toast):
+		_toast.queue_free()
+	_toast = PanelContainer.new()
+	_toast.add_theme_stylebox_override("panel", _toon(Color("fff4c2"), 16, 14, 6.0))
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_toast.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_toast.offset_top = 96
+	root.add_child(_toast)
+	var l := _label(_toast, text, 22)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var t := _toast
+	t.modulate.a = 0.0
+	var tw := create_tween()
+	tw.bind_node(t)
+	tw.tween_property(t, "modulate:a", 1.0, 0.3)
+	tw.tween_interval(2.8)
+	tw.tween_property(t, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(t.queue_free)
+
+
 # ---------- Hop thoai ----------
 
 func _build_dialog() -> void:
@@ -315,7 +370,7 @@ func _build_dialog() -> void:
 	choice_box.alignment = BoxContainer.ALIGNMENT_END
 	choice_box.add_theme_constant_override("separation", 12)
 	dialog.add_child(choice_box)
-	for i in 3:
+	for i in 4:
 		var b := _button(choice_box, "", Vector2(0, 88), 22)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.pressed.connect(_on_choice_button.bind(i))
@@ -393,6 +448,18 @@ func _build_dialog() -> void:
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait_frame.add_child(portrait)
+
+	# Bieu tuong cam xuc (tim / giot mo hoi) bat len o goc khung chan dung
+	emote = TextureRect.new()
+	emote.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	emote.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	emote.offset_left = 222
+	emote.offset_right = 222 + 54
+	emote.offset_top = -318
+	emote.offset_bottom = -318 + 54
+	emote.pivot_offset = Vector2(27, 54)
+	emote.visible = false
+	dialog.add_child(emote)
 	dialog.visible = false
 
 
@@ -409,6 +476,7 @@ func _on_choice_button(i: int) -> void:
 
 func open_dialog(speaker: String, tex: Texture2D) -> void:
 	name_label.text = speaker
+	emote.visible = false
 	set_portrait(tex)
 	hint_label.visible = false
 	choice_box.visible = false
@@ -420,6 +488,25 @@ func open_dialog(speaker: String, tex: Texture2D) -> void:
 	var tw := create_tween().set_parallel()
 	tw.tween_property(dialog, "modulate:a", 1.0, 0.2)
 	tw.tween_property(box_panel, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## mood: "happy" / "sad" -> hien bieu tuong nho canh chan dung; con lai thi an.
+func show_emote(mood: String) -> void:
+	var path := "res://assets/art/emote_%s.png" % mood
+	if not ResourceLoader.exists(path):
+		emote.visible = false
+		return
+	emote.texture = load(path)
+	emote.visible = true
+	emote.modulate.a = 1.0
+	emote.scale = Vector2(0.2, 0.2)
+	var tw := create_tween()
+	tw.bind_node(emote)
+	tw.tween_property(emote, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(emote, "position:y", emote.position.y - 8, 0.4).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(emote, "position:y", emote.position.y, 0.4).set_trans(Tween.TRANS_SINE)
+	tw.tween_interval(1.0)
+	tw.tween_property(emote, "modulate:a", 0.0, 0.4)
 
 
 func set_portrait(tex: Texture2D) -> void:
@@ -452,20 +539,40 @@ func show_hint(t: String) -> void:
 	hint_label.visible = t != ""
 
 
-## items: mang Dictionary {title, genre, stock}
+func _style_choice(b: Button, col: Color, h: float) -> void:
+	b.custom_minimum_size.y = h
+	(b.get_node("Spine") as ColorRect).color = col
+	for st in ["normal", "hover", "pressed"]:
+		var sb := _toon(PAPER_DARK if st == "pressed" else PAPER, 16, 14, 2.0 if st == "pressed" else 6.0)
+		sb.content_margin_left = 38
+		b.add_theme_stylebox_override(st, sb)
+
+
+## items: mang Dictionary {title, genre, stock, featured}
 func show_choices(items: Array) -> void:
-	for i in 3:
+	for i in choice_buttons.size():
 		var b: Button = choice_buttons[i]
 		b.visible = i < items.size()
 		if i < items.size():
 			var it: Dictionary = items[i]
-			b.text = "%s\n%s · còn %d cuốn" % [it["title"], it["genre"], it["stock"]]
-			var col: Color = GENRE_COLORS.get(it["genre"], WOOD)
-			(b.get_node("Spine") as ColorRect).color = col
-			for st in ["normal", "hover", "pressed"]:
-				var sb := _toon(PAPER_DARK if st == "pressed" else PAPER, 16, 14, 2.0 if st == "pressed" else 6.0)
-				sb.content_margin_left = 38
-				b.add_theme_stylebox_override(st, sb)
+			var extra := " · bày" if it.get("featured", false) else ""
+			b.text = "%s\n%s · còn %d%s" % [it["title"], it["genre"], it["stock"], extra]
+			_style_choice(b, GENRE_COLORS.get(it["genre"], WOOD), 88)
+	_pop_choices()
+
+
+## Cac lua chon mot dong (vd. cau hoi khi doc vi khach).
+func show_options(texts: Array) -> void:
+	for i in choice_buttons.size():
+		var b: Button = choice_buttons[i]
+		b.visible = i < texts.size()
+		if i < texts.size():
+			b.text = texts[i]
+			_style_choice(b, TEAL, 60)
+	_pop_choices()
+
+
+func _pop_choices() -> void:
 	choice_box.visible = true
 	choice_box.modulate.a = 0.0
 	create_tween().tween_property(choice_box, "modulate:a", 1.0, 0.25)
@@ -496,8 +603,25 @@ func _build_panels() -> void:
 	prep_title = _label(v, "", 32, ACCENT)
 	if font_bold != null:
 		prep_title.add_theme_font_override("font", font_bold)
-	_label(v, "Nhập thêm sách cho kệ · %d tiền một cuốn" % GameState.BUY_PRICE, 21, WOOD)
+	# hai the: Nhap sach / Sua sang tiem
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 12)
+	v.add_child(tabs)
+	var group := ButtonGroup.new()
+	tab_books = _button(tabs, "Nhập sách", Vector2(0, 60), 24)
+	tab_upgrades = _button(tabs, "Sửa sang tiệm", Vector2(0, 60), 24)
+	for tb in [tab_books, tab_upgrades]:
+		tb.toggle_mode = true
+		tb.button_group = group
+		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_books.pressed.connect(_show_tab.bind(false))
+	tab_upgrades.pressed.connect(_show_tab.bind(true))
+	prep_event = _label(v, "", 18, ACCENT)
+	prep_event.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	prep_sub = _label(v, "", 18, WOOD)
+	prep_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var scroll := ScrollContainer.new()
+	book_scroll = scroll
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_style_scroll(scroll)
@@ -506,7 +630,12 @@ func _build_panels() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 8)
 	scroll.add_child(list)
-	for b in Data.BOOKS:
+	# nguoi ban sach cu (chi hien vao ngay co nguoi ban)
+	seller_box = VBoxContainer.new()
+	seller_box.add_theme_constant_override("separation", 8)
+	seller_box.mouse_filter = Control.MOUSE_FILTER_PASS
+	list.add_child(seller_box)
+	for b in Data.BOOKS + Data.RARE_BOOKS:
 		var title: String = b["title"]
 		var card := PanelContainer.new()
 		var cs := _sb(PAPER_DARK, GENRE_COLORS.get(b["genre"], WOOD), 0, 12, 10)
@@ -516,23 +645,30 @@ func _build_panels() -> void:
 		card.mouse_filter = Control.MOUSE_FILTER_PASS  # de ngon tay vuot xuyen qua the -> danh sach cuon duoc
 		list.add_child(card)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 16)
+		row.add_theme_constant_override("separation", 24)  # nut cach xa nhau, do bam nham
 		card.add_child(row)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_theme_constant_override("separation", 0)
 		row.add_child(info)
-		_label(info, title, 23)
-		_label(info, b["genre"], 18, WOOD)
+		var tl := _label(info, title, 23)
+		tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_label(info, b["genre"] + (" · sách hiếm" if b in Data.RARE_BOOKS else ""), 18, WOOD)
 		var count_l := _label(row, "", 22)
 		count_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		var buy := _button(row, "+1", Vector2(96, 56), 24)
+		var feat := _button(row, "Bày", Vector2(130, 64), 18)
+		feat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		feat.mouse_filter = Control.MOUSE_FILTER_PASS
+		feat.button_down.connect(_on_buy_down.bind("f:" + title, scroll))
+		feat.pressed.connect(_on_feature_button.bind(title, scroll))
+		var buy := _button(row, "+1", Vector2(110, 64), 24)
 		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		buy.mouse_filter = Control.MOUSE_FILTER_PASS
 		buy.button_down.connect(_on_buy_down.bind(title, scroll))
 		buy.pressed.connect(_on_buy_button.bind(title, scroll))
-		stock_rows[title] = [count_l, buy]
-	var open_btn := _button(v, "Mở cửa tiệm", Vector2(0, 80), 30)
+		stock_rows[title] = [count_l, buy, feat, card]
+	_build_upgrade_list(v)
+	open_btn = _button(v, "Mở cửa tiệm", Vector2(0, 80), 30)
 	open_btn.pressed.connect(func() -> void: open_shop_pressed.emit())
 
 	evening_panel = _panel()
@@ -552,6 +688,17 @@ func _build_panels() -> void:
 	notebook_title = _label(nb, "Sổ của ông", 32, ACCENT)
 	if font_bold != null:
 		notebook_title.add_theme_font_override("font", font_bold)
+	var nrow := HBoxContainer.new()
+	nrow.add_theme_constant_override("separation", 12)
+	nb.add_child(nrow)
+	var ngroup := ButtonGroup.new()
+	for i in 3:
+		var tb := _button(nrow, ["Trang sổ", "Sách đã bán", "Danh hiệu"][i], Vector2(0, 56), 22)
+		tb.toggle_mode = true
+		tb.button_group = ngroup
+		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tb.pressed.connect(_fill_notebook.bind(i))
+		nb_tabs.append(tb)
 	var nscroll := ScrollContainer.new()
 	nscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -576,16 +723,170 @@ func _on_buy_button(title: String, scroll: ScrollContainer) -> void:
 	buy_pressed.emit(title)
 
 
+func _build_upgrade_list(v: VBoxContainer) -> void:
+	upgrade_scroll = ScrollContainer.new()
+	upgrade_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	upgrade_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_style_scroll(upgrade_scroll)
+	v.add_child(upgrade_scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	upgrade_scroll.add_child(list)
+	for u in Data.UPGRADES:
+		var id: String = u["id"]
+		var card := PanelContainer.new()
+		var cs := _sb(PAPER_DARK, MOSS if u["kind"] == "clean" else ACCENT, 0, 12, 10)
+		cs.border_width_left = 12
+		cs.content_margin_left = 20
+		card.add_theme_stylebox_override("panel", cs)
+		card.mouse_filter = Control.MOUSE_FILTER_PASS
+		list.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 16)
+		card.add_child(row)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 0)
+		row.add_child(info)
+		var nm := _label(info, u["name"], 23)
+		var ds := _label(info, u["desc"], 18, WOOD)
+		ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var b := _button(row, "", Vector2(170, 56), 22)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		b.mouse_filter = Control.MOUSE_FILTER_PASS
+		b.button_down.connect(_on_buy_down.bind(id, upgrade_scroll))
+		b.pressed.connect(_on_upgrade_button.bind(id, upgrade_scroll))
+		upgrade_rows[id] = [b, nm]
+	upgrade_scroll.visible = false
+
+
+func _on_feature_button(title: String, scroll: ScrollContainer) -> void:
+	if absi(scroll.scroll_vertical - int(_press_scroll.get("f:" + title, scroll.scroll_vertical))) > 12:
+		return
+	feature_pressed.emit(title)
+
+
+func _on_rare_button(title: String) -> void:
+	rare_pressed.emit(title)
+
+
+## Dung lai khu nguoi ban sach theo hang ngay hom nay.
+func _refresh_seller() -> void:
+	for ch in seller_box.get_children():
+		seller_box.remove_child(ch)
+		ch.queue_free()
+	if not GameState.seller_today():
+		seller_box.visible = false
+		return
+	seller_box.visible = true
+	var offer := GameState.seller_offer()
+	# gon: chi mot nut; bam vao moi mo danh sach sach hiem
+	var toggle := _button(seller_box, "Chú Ba ve chai ghé tiệm · %s %d cuốn sách hiếm" % ["ẩn" if _seller_open else "xem", offer.size()], Vector2(0, 60), 18)
+	toggle.add_theme_stylebox_override("normal", _toon(Color("fff4c2"), 12, 14, 6.0))
+	toggle.mouse_filter = Control.MOUSE_FILTER_PASS
+	toggle.pressed.connect(_toggle_seller)
+	if not _seller_open:
+		return
+	var head := PanelContainer.new()
+	head.add_theme_stylebox_override("panel", _toon(Color("fff4c2"), 12, 14, 4.0))
+	head.mouse_filter = Control.MOUSE_FILTER_PASS
+	seller_box.add_child(head)
+	var hv := VBoxContainer.new()
+	head.add_child(hv)
+	var h := _label(hv, "Mua một cuốn được 2 bản, từ nay nhập thêm được.", 18, INK)
+	h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for b in offer:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		hv.add_child(row)
+		var nm := _label(row, "%s · %s" % [b["title"], b["genre"]], 18)
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		nm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var btn := _button(row, "%d tiền" % Data.RARE_PRICE, Vector2(150, 60), 22)
+		btn.mouse_filter = Control.MOUSE_FILTER_PASS
+		btn.disabled = GameState.coins < Data.RARE_PRICE
+		btn.pressed.connect(_on_rare_button.bind(b["title"]))
+
+
+func _toggle_seller() -> void:
+	_seller_open = not _seller_open
+	_refresh_seller()
+
+
+func _on_upgrade_button(id: String, scroll: ScrollContainer) -> void:
+	if absi(scroll.scroll_vertical - int(_press_scroll.get(id, scroll.scroll_vertical))) > 12:
+		return
+	upgrade_pressed.emit(id)
+
+
+func _show_tab(upgrades: bool) -> void:
+	book_scroll.visible = not upgrades
+	upgrade_scroll.visible = upgrades
+	tab_books.button_pressed = not upgrades
+	tab_upgrades.button_pressed = upgrades
+	if upgrades:
+		if GameState.cleaning_done():
+			prep_sub.text = "Trang trí cho tiệm. Mỗi món có một tác dụng nhỏ."
+		else:
+			prep_sub.text = "Tiệm bỏ lâu nên còn bụi. Dọn dẹp xong mới trang trí được."
+	else:
+		prep_sub.text = "Sách %d tiền một cuốn · Bày tối đa %d cuốn (+3 tiền khi bán)" % [GameState.buy_price(), GameState.MAX_FEATURED]
+
+
+## Mo bang chuan bi buoi sang (mac dinh o the Nhap sach).
 func show_prep() -> void:
-	prep_title.text = "Ngày %d · Chuẩn bị (8:00)" % GameState.day
+	_seller_open = false
+	prep_title.text = "%s, ngày %d · %s" % [Data.WEEKDAYS[GameState.weekday()], GameState.day, Data.WEATHER_NAMES[GameState.weather()]]
+	var ev := GameState.week_event()
+	if GameState.weather() == "rain":
+		ev = (ev + " " if ev != "" else "") + "Trời mưa: khách thưa hơn."
+	prep_event.text = ev
+	prep_event.visible = ev != ""
+	_show_tab(false)
 	refresh_stock()
+	prep_panel.modulate.a = 1.0
 	prep_panel.visible = true
 
 
 func refresh_stock() -> void:
 	for t in stock_rows:
-		stock_rows[t][0].text = "Còn %d" % GameState.stock_of(t)
-		stock_rows[t][1].disabled = GameState.coins < GameState.BUY_PRICE
+		var row: Array = stock_rows[t]
+		var unlocked := GameState.is_unlocked(t)
+		(row[3] as Control).visible = unlocked
+		row[0].text = "Còn %d" % GameState.stock_of(t)
+		row[1].disabled = GameState.coins < GameState.buy_price()
+		var on: bool = t in GameState.featured
+		row[2].text = "Đang bày" if on else "Bày"
+		row[2].disabled = not on and GameState.featured.size() >= GameState.MAX_FEATURED
+	_refresh_seller()
+	for u in Data.UPGRADES:
+		var b: Button = upgrade_rows[u["id"]][0]
+		match GameState.upgrade_state(u):
+			"owned":
+				b.text = "Đã xong" if u["kind"] == "clean" else "Đã có"
+				b.disabled = true
+			"locked":
+				b.text = "%d tiền" % int(u["price"])
+				b.disabled = true
+			"poor":
+				b.text = "%d tiền" % int(u["price"])
+				b.disabled = true
+			_:
+				b.text = "%d tiền" % int(u["price"])
+				b.disabled = false
+	if upgrade_scroll.visible:
+		_show_tab(true)  # cap nhat dong huong dan (vd. vua don dep xong)
+
+
+## An bang chuan bi mot chut de nguoi choi thay tiem vua thay doi.
+func peek_shop() -> void:
+	var tw := create_tween()
+	tw.bind_node(prep_panel)
+	tw.tween_property(prep_panel, "modulate:a", 0.0, 0.25)
+	tw.tween_interval(1.6)
+	tw.tween_property(prep_panel, "modulate:a", 1.0, 0.3)
 
 
 func show_evening(text: String) -> void:
@@ -597,9 +898,62 @@ func open_notebook() -> void:
 	if dialog.visible or title_root != null:
 		return
 	buzz(20)
+	_fill_notebook(0)
+	Audio.sfx("page_flip")
+	notebook_panel.visible = true
+
+
+func _clear_notebook() -> void:
 	for ch in notebook_list.get_children():
 		notebook_list.remove_child(ch)
 		ch.queue_free()
+
+
+## 0 = trang so, 1 = bo suu tap sach, 2 = danh hieu
+func _fill_notebook(tab: int) -> void:
+	_nb_tab = tab
+	for i in nb_tabs.size():
+		nb_tabs[i].button_pressed = i == tab
+	_clear_notebook()
+	if tab == 1:
+		_fill_collection()
+		return
+	if tab == 2:
+		_fill_achievements()
+		return
+	_fill_pages()
+
+
+func _fill_collection() -> void:
+	var all: Array = Data.BOOKS + Data.RARE_BOOKS
+	var found := 0
+	for b in all:
+		var t: String = b["title"]
+		var n := int(GameState.sold.get(t, 0))
+		var known := GameState.is_unlocked(t)
+		if n > 0:
+			found += 1
+		if not known:
+			_label(notebook_list, "• ??? · sách hiếm chưa tìm thấy", 22, Color(INK, 0.4))
+		elif n == 0:
+			_label(notebook_list, "• %s · %s · chưa bán" % [t, b["genre"]], 22, Color(INK, 0.55))
+		else:
+			_label(notebook_list, "• %s · %s · đã bán %d" % [t, b["genre"], n], 22)
+	notebook_title.text = "Bộ sưu tập · đã bán %d/%d đầu sách" % [found, all.size()]
+
+
+func _fill_achievements() -> void:
+	var got := 0
+	for a in Data.ACHIEVEMENTS:
+		var ok: bool = a["id"] in GameState.achievements
+		if ok:
+			got += 1
+		_label(notebook_list, a["name"] + ("" if ok else " · chưa đạt"), 26, ACCENT if ok else Color(INK, 0.45))
+		_label(notebook_list, "  " + str(a["desc"]), 20, INK if ok else Color(INK, 0.45))
+	notebook_title.text = "Danh hiệu · đạt %d/%d" % [got, Data.ACHIEVEMENTS.size()]
+
+
+func _fill_pages() -> void:
 	var total := 0
 	for c in Data.CUSTOMERS:
 		if not c.has("visits"):
@@ -617,8 +971,6 @@ func open_notebook() -> void:
 		for _k in range(n_pages - opened):
 			_label(notebook_list, "• …trang chưa mở", 22, Color(INK, 0.4))
 	notebook_title.text = "Sổ của ông · đã mở %d/%d trang" % [GameState.pages.size(), total]
-	Audio.sfx("page_flip")
-	notebook_panel.visible = true
 
 
 func close_notebook() -> void:
@@ -644,11 +996,16 @@ const INTRO_PAGES := [
 ]
 
 
+# Tranh nen cho tung trang (file trong assets/art, khong co duoi .png)
+const INTRO_IMAGES := ["intro_pho", "intro_thu", "intro_tiem_bui", "intro_thu", "shop_bg"]
+const ENDING_IMAGES := ["ending_tiem", "ending_tiem", "ending_tiem", "ending_tiem", "ending_tiem", "intro_pho"]
+
 const ENDING_PAGES := [
 	"Một sáng thứ Bảy, chuông cửa reo sớm hơn mọi ngày.",
 	"Chị Mai ôm vào một bó cúc vàng, cắm vào chiếc bình trên quầy.\n\n“Tiệm hoa của mình mở rồi, ngay đầu hẻm. Từ giờ bình này để mình lo nhé.”",
 	"Chiều đến, ông Tư kê bàn cờ cạnh cửa sổ, đặt quân Tướng về đúng chỗ của nó.\n\n“Nào, cháu đi trước đi. Ngày xưa ông cháu cũng toàn nhường tôi đi trước.”",
 	"Nam chạy vào, tay ôm xấp bản thảo còn thơm mùi mực. Trang đầu tiên ghi:\n\n“Tặng ông chủ tiệm sách đầu phố, người đã bảo tôi: Viết tiếp đi.”",
+	"Gần tối, cô Liên ngồi giữa tiệm đọc thơ từ tập bìa xanh. Bé Thỏ ngồi hàng đầu, mẹ bé đứng nép ở cửa.\n\nNgoài hiên, chú Đức vừa vá xe vừa lẩm nhẩm đọc theo.",
 	"Cuốn sổ của ông giờ không còn trang nào để trống.\n\nNhưng tiệm sách thì vẫn còn rất nhiều ngày để viết tiếp.",
 ]
 
@@ -830,27 +1187,77 @@ func show_main_menu(save_info: String) -> void:
 	Audio.play_music("menu")
 	title_root = Control.new()
 	title_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title_root.clip_contents = true
 	root.add_child(title_root)
-	# lop toi ben trai de chu noi, ben phai van thay tiem
-	var shade := ColorRect.new()
-	shade.color = Color(0.1, 0.08, 0.07, 0.45)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var vs := get_viewport().get_visible_rect().size
+
+	# nen: pho cu mua chieu, phong to/thu nho rat cham
+	var bg := TextureRect.new()
+	bg.texture = load("res://assets/art/intro_pho.png")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.pivot_offset = Vector2(vs.x * 0.7, vs.y * 0.5)
+	title_root.add_child(bg)
+	var zoom := create_tween().set_loops()
+	zoom.bind_node(bg)
+	zoom.tween_property(bg, "scale", Vector2(1.08, 1.08), 16.0).set_trans(Tween.TRANS_SINE)
+	zoom.tween_property(bg, "scale", Vector2.ONE, 16.0).set_trans(Tween.TRANS_SINE)
+
+	# mua roi + la me bay (ve bang code)
+	_menu_fx = Control.new()
+	_menu_fx.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_menu_fx.draw.connect(_draw_menu_fx)
+	title_root.add_child(_menu_fx)
+	_fx_drops = []
+	for k in 90:
+		_fx_drops.append(Vector2(randf() * vs.x, randf() * vs.y))
+	_fx_leaves = []
+	for k in 7:
+		_fx_leaves.append(_new_leaf(vs, true))
+
+	# vung toi dan ben trai de chu de doc
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.08, 0.06, 0.05, 0.88))
+	grad.set_color(1, Color(0.08, 0.06, 0.05, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_from = Vector2(0.35, 0.0)
+	gt.fill_to = Vector2(1.0, 0.0)
+	var shade := TextureRect.new()
+	shade.texture = gt
+	shade.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	shade.offset_right = 760
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_root.add_child(shade)
-	var side := ColorRect.new()
-	side.color = Color(0.1, 0.08, 0.07, 0.5)
-	side.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	side.offset_right = 560
-	title_root.add_child(side)
 
 	var v := VBoxContainer.new()
 	v.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	v.offset_left = 70
-	v.offset_right = 490
+	v.offset_right = 510
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 14)
 	title_root.add_child(v)
-	var t := _hud_label(v, "The Little\nBookshop", 64)
-	t.add_theme_color_override("font_color", Color("f4d03f"))
+	# ten game: dat trong mot khung rieng de tu do roi xuong va nhun nhe
+	var title_box := Control.new()
+	title_box.custom_minimum_size = Vector2(432, 192)
+	title_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(title_box)
+	var t: Control
+	if ResourceLoader.exists("res://assets/art/logo_title.png"):
+		var logo := TextureRect.new()  # logo pixel ve rieng
+		logo.texture = load("res://assets/art/logo_title.png")
+		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		title_box.add_child(logo)
+		t = logo
+	else:
+		var tl := _hud_label(title_box, "The Little\nBookshop", 64)
+		tl.add_theme_color_override("font_color", Color("f4d03f"))
+		tl.add_theme_constant_override("outline_size", 10)
+		t = tl
 	var sub := _hud_label(v, "Tiệm sách nhỏ phố cũ", 32)
 	sub.add_theme_color_override("font_color", LIGHT)
 	var gap := Control.new()
@@ -858,19 +1265,138 @@ func show_main_menu(save_info: String) -> void:
 	v.add_child(gap)
 
 	_save_info = save_info
+	var items: Array = []
 	if save_info != "":
 		var cont := _button(v, "Chơi tiếp", Vector2(0, 64), 26)
 		cont.pressed.connect(_on_continue_game)
 		var info := _hud_label(v, save_info, 16)
 		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		items.append_array([cont, info])
 	var newb := _button(v, "Ván mới", Vector2(0, 64), 26)
 	newb.pressed.connect(_on_new_game_button)
-	_button(v, "Cài đặt", Vector2(0, 64), 26).pressed.connect(open_settings.bind(false))
-	_button(v, "Giới thiệu", Vector2(0, 64), 26).pressed.connect(_open_credits)
+	items.append(newb)
+	var setb := _button(v, "Cài đặt", Vector2(0, 64), 26)
+	setb.pressed.connect(open_settings.bind(false))
+	items.append(setb)
+	var credb := _button(v, "Giới thiệu", Vector2(0, 64), 26)
+	credb.pressed.connect(_open_credits)
+	items.append(credb)
 	if OS.get_name() == "Android":  # iOS khong cho app tu thoat
-		_button(v, "Thoát", Vector2(0, 64), 26).pressed.connect(get_tree().quit)
+		var quitb := _button(v, "Thoát", Vector2(0, 64), 26)
+		quitb.pressed.connect(get_tree().quit)
+		items.append(quitb)
+	_menu_items = items
+	for it in items:
+		(it as Control).modulate.a = 0.0
+		if it is Button:
+			(it as Button).mouse_filter = Control.MOUSE_FILTER_IGNORE  # chua bam duoc khi con an
+	sub.modulate.a = 0.0
+
+	# hieu ung mo man: toi -> sang, ten game roi xuong nay nhe, roi phu de, roi cac nut
 	title_root.modulate.a = 0.0
-	create_tween().tween_property(title_root, "modulate:a", 1.0, 0.4)
+	t.position.y = -90.0
+	t.modulate.a = 0.0
+	var tw := create_tween()
+	tw.bind_node(title_root)
+	tw.tween_property(title_root, "modulate:a", 1.0, 1.2)
+	tw.parallel().tween_property(t, "modulate:a", 1.0, 0.6).set_delay(0.5)
+	tw.parallel().tween_property(t, "position:y", 0.0, 0.9).set_delay(0.5).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(sub, "modulate:a", 1.0, 0.6)
+	tw.tween_callback(_title_bob.bind(t))
+	if GameState.menu_seen:
+		tw.tween_callback(_reveal_menu)
+	else:
+		# lan dau mo app: cho nguoi choi ngam canh, cham moi hien menu
+		var press := _hud_label(title_root, "Chạm để bắt đầu", 32)
+		press.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		press.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		press.offset_top = -90
+		press.offset_bottom = -50
+		press.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		press.modulate.a = 0.0
+		tw.tween_property(press, "modulate:a", 1.0, 0.5)
+		tw.tween_callback(_blink.bind(press))
+		_press_label = press
+		title_root.gui_input.connect(_on_menu_tap)
+
+
+func _title_bob(t: Control) -> void:
+	var tw := create_tween().set_loops()
+	tw.bind_node(t)
+	tw.tween_property(t, "position:y", -6.0, 1.6).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(t, "position:y", 0.0, 1.6).set_trans(Tween.TRANS_SINE)
+
+
+func _blink(c: Control) -> void:
+	var tw := create_tween().set_loops()
+	tw.bind_node(c)
+	tw.tween_property(c, "modulate:a", 0.35, 0.7)
+	tw.tween_property(c, "modulate:a", 1.0, 0.7)
+
+
+func _on_menu_tap(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed or GameState.menu_seen:
+		return
+	GameState.menu_seen = true
+	buzz(30)
+	Audio.sfx("door_bell", 0.7)
+	if _press_label != null and is_instance_valid(_press_label):
+		_press_label.queue_free()
+	_reveal_menu()
+
+
+## Cac nut menu hien lan luot tung cai.
+func _reveal_menu() -> void:
+	var tw := create_tween()
+	if title_root != null:
+		tw.bind_node(title_root)
+	for i in _menu_items.size():
+		var c: Control = _menu_items[i]
+		if not is_instance_valid(c):
+			continue
+		tw.tween_property(c, "modulate:a", 1.0, 0.25).set_delay(0.06)
+		if c is Button:
+			tw.tween_callback(c.set.bind("mouse_filter", Control.MOUSE_FILTER_STOP))
+
+
+func _new_leaf(vs: Vector2, anywhere: bool) -> Dictionary:
+	return {
+		"pos": Vector2(randf() * vs.x * 1.1, randf() * vs.y if anywhere else -20.0),
+		"speed": randf_range(28.0, 55.0), "phase": randf() * TAU,
+		"col": [Color("8fae4a"), Color("c9a640"), Color("6f8f3a")].pick_random(),
+	}
+
+
+func _update_menu_fx(delta: float) -> void:
+	var vs := get_viewport().get_visible_rect().size
+	for i in _fx_drops.size():
+		var d: Vector2 = _fx_drops[i] + Vector2(-140.0, 900.0) * delta
+		if d.y > vs.y or d.x < -20.0:
+			d = Vector2(randf() * (vs.x + 200.0), -30.0)
+		_fx_drops[i] = d
+	for i in _fx_leaves.size():
+		var lf: Dictionary = _fx_leaves[i]
+		lf["phase"] = float(lf["phase"]) + delta * 1.6
+		var p: Vector2 = lf["pos"]
+		p += Vector2(-18.0 + sin(float(lf["phase"])) * 30.0, float(lf["speed"])) * delta
+		lf["pos"] = p
+		if p.y > vs.y + 20.0 or p.x < -30.0:
+			_fx_leaves[i] = _new_leaf(vs, false)
+	_menu_fx.queue_redraw()
+
+
+func _draw_menu_fx() -> void:
+	for d in _fx_drops:
+		_menu_fx.draw_rect(Rect2(d, Vector2(3, 22)), Color(0.82, 0.88, 1.0, 0.28))
+	for lf in _fx_leaves:
+		var p: Vector2 = lf["pos"]
+		var c: Color = lf["col"]
+		# la me nho kieu pixel: 3 o vuong, nghieng theo nhip lac lu
+		var tilt := 3.0 if sin(float(lf["phase"])) > 0.0 else -3.0
+		_menu_fx.draw_rect(Rect2(p, Vector2(4, 4)), c)
+		_menu_fx.draw_rect(Rect2(p + Vector2(4, tilt), Vector2(4, 4)), c.darkened(0.15))
+		_menu_fx.draw_rect(Rect2(p + Vector2(8, tilt * 2.0), Vector2(4, 4)), c.lightened(0.1))
 
 
 func _on_continue_game() -> void:
@@ -905,17 +1431,18 @@ func _fade_out_title() -> void:
 ## Phan mo dau cua Van moi: vai trang chu tren nen tiem toi, cham de qua trang.
 func show_intro() -> void:
 	Audio.play_music("menu")
-	_show_story(INTRO_PAGES, "intro")
+	_show_story(INTRO_PAGES, INTRO_IMAGES, "intro")
 
 
 ## Doan ket: hien khi mo het so cua ong, roi chay chu Credits.
 func show_ending() -> void:
 	Audio.play_music("menu")
-	_show_story(ENDING_PAGES, "ending")
+	_show_story(ENDING_PAGES, ENDING_IMAGES, "ending")
 
 
-func _show_story(story: Array, mode: String) -> void:
+func _show_story(story: Array, images: Array, mode: String) -> void:
 	_story_pages = story
+	_story_images = images
 	_story_mode = mode
 	close_dialog()
 	prep_panel.visible = false
@@ -933,23 +1460,25 @@ func _show_story(story: Array, mode: String) -> void:
 	title_root.add_child(black)
 	# nen tiem mo, phong to cham cham
 	var bg := TextureRect.new()
-	bg.texture = load("res://assets/art/shop_bg.png")
+	_intro_bg = bg
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	bg.modulate = Color(0.45, 0.4, 0.38)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_root.add_child(bg)
 	bg.pivot_offset = get_viewport().get_visible_rect().size / 2.0
 	var zoom := create_tween()
 	zoom.bind_node(bg)
-	zoom.tween_property(bg, "scale", Vector2(1.12, 1.12), 40.0)
+	zoom.tween_property(bg, "scale", Vector2(1.08, 1.08), 60.0)
 
+	# khung chu nam duoi day man hinh, de thay tranh phia tren
 	var paper := PanelContainer.new()
-	paper.set_anchors_preset(Control.PRESET_CENTER)
-	paper.custom_minimum_size = Vector2(820, 380)
-	paper.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	paper.grow_vertical = Control.GROW_DIRECTION_BOTH
+	paper.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	paper.offset_left = 60
+	paper.offset_right = -60
+	paper.offset_top = -250
+	paper.offset_bottom = -24
+	paper.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_root.add_child(paper)
 	var pv := VBoxContainer.new()
@@ -982,6 +1511,7 @@ func _show_story(story: Array, mode: String) -> void:
 
 
 func _show_intro_page() -> void:
+	_set_story_image(_story_images[mini(_intro_i, _story_images.size() - 1)])
 	_intro_label.text = _story_pages[_intro_i]
 	_intro_label.visible_ratio = 0.0
 	if _typing != null:
@@ -989,6 +1519,24 @@ func _show_intro_page() -> void:
 	_typing = create_tween()
 	var per_char: float = GameState.TEXT_SPEEDS[GameState.text_speed]
 	_typing.tween_property(_intro_label, "visible_ratio", 1.0, clampf(_intro_label.text.length() * per_char, 0.3, 5.0))
+
+
+## Doi tranh nen cua trang: mo dan sang tranh moi neu khac tranh cu.
+func _set_story_image(file: String) -> void:
+	var path := "res://assets/art/%s.png" % file
+	if not ResourceLoader.exists(path):
+		path = "res://assets/art/shop_bg.png"
+	var tex: Texture2D = load(path)
+	if _intro_bg.texture == tex:
+		return
+	if _intro_bg.texture == null:
+		_intro_bg.texture = tex
+		return
+	var tw := create_tween()
+	tw.bind_node(_intro_bg)
+	tw.tween_property(_intro_bg, "modulate:a", 0.0, 0.35)
+	tw.tween_callback(func() -> void: _intro_bg.texture = tex)
+	tw.tween_property(_intro_bg, "modulate:a", 1.0, 0.5)
 
 
 func _on_intro_input(event: InputEvent) -> void:
@@ -1105,3 +1653,79 @@ func close_settings() -> void:
 	settings_panel.visible = false
 	if _settings_back_to_pause:
 		pause_panel.visible = true
+
+
+
+# ---------- Huong dan choi lan dau ----------
+
+func _build_tutorial() -> void:
+	tut_frame = ReferenceRect.new()
+	tut_frame.editor_only = false
+	tut_frame.border_color = Color("f4d03f")
+	tut_frame.border_width = 6.0
+	tut_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tut_frame.visible = false
+	root.add_child(tut_frame)
+	tut_box = PanelContainer.new()
+	tut_box.add_theme_stylebox_override("panel", _toon(Color("fff4c2"), 12, 16, 6.0))
+	tut_box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # khong chan ngon tay
+	tut_box.custom_minimum_size = Vector2(420, 0)
+	tut_box.visible = false
+	root.add_child(tut_box)
+	tut_label = _label(tut_box, "", 22)
+	tut_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tut_label.custom_minimum_size = Vector2(388, 0)
+
+
+## Hien loi nhac canh mot nut, kem khung vang nhap nhay quanh nut do.
+func show_tutorial(text: String, target: Control) -> void:
+	_tut_target = target
+	tut_label.text = text
+	tut_box.size = Vector2.ZERO  # tinh lai chieu cao theo chu
+	tut_frame.move_to_front()
+	tut_box.move_to_front()
+	_place_tutorial()
+
+
+func hide_tutorial() -> void:
+	_tut_target = null
+	tut_box.visible = false
+	tut_frame.visible = false
+
+
+func _process(delta: float) -> void:
+	if _menu_fx != null and is_instance_valid(_menu_fx):
+		_update_menu_fx(delta)
+	if _tut_target != null:
+		_tut_t += delta
+		_place_tutorial()
+
+
+func _place_tutorial() -> void:
+	var t := _tut_target
+	var on := t != null and is_instance_valid(t) and t.is_visible_in_tree() \
+		and not pause_panel.visible and not notebook_panel.visible and not settings_panel.visible
+	tut_box.visible = on
+	tut_frame.visible = on
+	if not on:
+		return
+	var r := t.get_global_rect().grow(8.0)
+	tut_frame.position = r.position
+	tut_frame.size = r.size
+	tut_frame.modulate.a = 0.55 + 0.45 * sin(_tut_t * 5.0)
+	var vs := get_viewport().get_visible_rect().size
+	var bs := tut_box.get_combined_minimum_size()
+	var x := clampf(r.position.x + r.size.x / 2.0 - bs.x / 2.0, 12.0, vs.x - bs.x - 12.0)
+	var y := r.position.y - bs.y - 14.0  # uu tien dat phia tren nut
+	if y < 80.0:
+		y = minf(r.end.y + 14.0, vs.y - bs.y - 12.0)
+	tut_box.position = Vector2(x, y)
+
+
+## Nut dau tien dang hien trong danh sach nhap sach (de chi vao).
+func first_book_button(index: int) -> Control:
+	for b in Data.BOOKS:
+		var row: Array = stock_rows[b["title"]]
+		if (row[3] as Control).visible:
+			return row[index]
+	return null

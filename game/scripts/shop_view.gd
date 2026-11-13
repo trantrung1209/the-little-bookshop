@@ -6,6 +6,8 @@ extends Node2D
 
 const Layout = preload("res://scripts/shop_layout.gd")
 const Rigs = preload("res://scripts/rigs.gd")
+const Data = preload("res://scripts/game_data.gd")
+const DIM := Color(0.8, 0.76, 0.72)  # tiem toi khi chua thay bong den
 const ART := "res://assets/art/"
 const MAX_WALK_FRAMES := 16  # nhan vat co the co 4, 6, 8... khung di bo
 
@@ -13,6 +15,19 @@ var world: Node2D
 var highlights: Array = []
 var _walkers := {}
 var _t := 0.0
+var dust: Sprite2D
+var webs: Sprite2D
+var decor := {}   # id -> Sprite2D do trang tri da dat
+var tint: CanvasModulate   # mau anh sang theo gio trong ngay + thoi tiet
+var rain: Node2D
+var _drops: Array = []
+var _weather := "sun"
+const RAIN_AREA := Rect2(1440, 100, 480, 860)   # vung cua kinh nhin ra pho
+## (phut trong ngay, mau anh sang)
+const DAYLIGHT := [
+	[480.0, Color(1.0, 0.97, 0.93)], [600.0, Color(1.0, 1.0, 1.0)], [840.0, Color(1.0, 0.99, 0.96)],
+	[960.0, Color(1.0, 0.92, 0.82)], [1020.0, Color(0.93, 0.8, 0.74)], [1080.0, Color(0.8, 0.7, 0.72)],
+]
 
 
 func _ready() -> void:
@@ -26,6 +41,18 @@ func _ready() -> void:
 	bg.centered = false
 	bg.z_index = -10
 	world.add_child(bg)
+	# lop bui va mang nhen phu len nen (an dan khi don dep)
+	dust = _overlay("dirt_dust", -9)
+	webs = _overlay("dirt_webs", -8)
+	tint = CanvasModulate.new()
+	add_child(tint)
+	rain = Node2D.new()
+	rain.z_index = -7
+	rain.visible = false
+	rain.draw.connect(_draw_rain)
+	world.add_child(rain)
+	for i in 70:
+		_drops.append(Vector2(RAIN_AREA.position.x + randf() * RAIN_AREA.size.x, RAIN_AREA.position.y + randf() * RAIN_AREA.size.y))
 	for s in Layout.SHELVES:
 		var r: Rect2 = s["rect"]
 		var hl := ReferenceRect.new()
@@ -41,6 +68,106 @@ func _ready() -> void:
 		highlights.append(hl)
 	get_viewport().size_changed.connect(_fit)
 	_fit()
+
+
+func _overlay(file: String, z: int) -> Sprite2D:
+	var s := Sprite2D.new()
+	s.texture = tex_or_null(file)
+	s.centered = false
+	s.z_index = z
+	world.add_child(s)
+	return s
+
+
+## Cap nhat tiem theo cac mon sua sang da mua. just_bought = id vua mua (co hieu ung).
+func apply_upgrades(just_bought: String = "") -> void:
+	_show_dirt(webs, not GameState.has_upgrade("webs"), just_bought == "webs")
+	_show_dirt(dust, not GameState.has_upgrade("dust"), just_bought == "dust")
+	var light := Color.WHITE if GameState.has_upgrade("bulb") else DIM
+	if just_bought == "bulb":
+		create_tween().tween_property(world, "modulate", light, 1.2)
+	else:
+		world.modulate = light
+	for u in Data.UPGRADES:
+		if u["kind"] != "decor":
+			continue
+		var id: String = u["id"]
+		var owned := GameState.has_upgrade(id)
+		if owned and not decor.has(id):
+			var t := tex_or_null(u["sprite"])
+			if t == null:
+				continue
+			var s := Sprite2D.new()
+			s.texture = t
+			s.centered = false
+			s.offset = Vector2(-t.get_width() / 2.0, -float(t.get_height()))  # goc o giua-day hinh
+			s.position = u["pos"]
+			s.z_index = -5  # sau nhan vat
+			world.add_child(s)
+			decor[id] = s
+			if id == just_bought:
+				s.scale = Vector2(0.6, 0.6)
+				s.modulate.a = 0.0
+				var tw := create_tween().set_parallel()
+				tw.tween_property(s, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+				tw.tween_property(s, "modulate:a", 1.0, 0.3)
+		elif not owned and decor.has(id):
+			decor[id].queue_free()
+			decor.erase(id)
+
+
+## Thoi tiet cua ngay: "sun" / "cloud" / "rain".
+func set_weather(w: String) -> void:
+	_weather = w
+	rain.visible = w == "rain"
+
+
+## Doi mau anh sang theo gio (phut trong ngay) va thoi tiet.
+func set_time(minutes: float) -> void:
+	var c: Color = DAYLIGHT[0][1]
+	for i in range(DAYLIGHT.size() - 1):
+		var a: Array = DAYLIGHT[i]
+		var b: Array = DAYLIGHT[i + 1]
+		if minutes >= float(a[0]) and minutes <= float(b[0]):
+			c = (a[1] as Color).lerp(b[1], (minutes - float(a[0])) / (float(b[0]) - float(a[0])))
+			break
+		if minutes > float(b[0]):
+			c = b[1]
+	if _weather == "rain":
+		c *= Color(0.82, 0.86, 0.94)
+	elif _weather == "cloud":
+		c *= Color(0.93, 0.94, 0.97)
+	c.a = 1.0
+	tint.color = c
+
+
+func _draw_rain() -> void:
+	for d in _drops:
+		rain.draw_rect(Rect2(d, Vector2(5, 30)), Color(0.85, 0.9, 1.0, 0.45))
+
+
+func _move_rain(delta: float) -> void:
+	for i in _drops.size():
+		var d: Vector2 = _drops[i]
+		d += Vector2(-120.0, 1100.0) * delta
+		if d.y > RAIN_AREA.end.y or d.x < RAIN_AREA.position.x:
+			d = Vector2(RAIN_AREA.position.x + randf() * RAIN_AREA.size.x + 60.0, RAIN_AREA.position.y)
+		_drops[i] = d
+	rain.queue_redraw()
+
+
+func _show_dirt(s: Sprite2D, on: bool, animate: bool) -> void:
+	if s == null:
+		return
+	if on:
+		s.visible = true
+		s.modulate.a = 1.0
+	elif animate:
+		var tw := create_tween()
+		tw.tween_property(s, "modulate:a", 0.0, 1.0)
+		tw.tween_callback(s.hide)
+	else:
+		s.visible = false
 
 
 func _fit() -> void:
@@ -125,8 +252,10 @@ func spawn_person(sprite_id: String) -> Node2D:
 	if Rigs.RIGS.has(sprite_id):
 		target_h = float(Rigs.RIGS[sprite_id].get("height", Layout.PERSON_HEIGHT))
 		native = bool(Rigs.RIGS[sprite_id].get("native", false))
-	# hinh pixel da phong to dung ty le -> giu nguyen kich thuoc (khong co gian)
-	var k := 1.0 if native else target_h / h
+	# hinh pixel da phong to dung ty le -> giu nguyen kich thuoc (chi co "scale" nguyen, vd. tre con)
+	var k := target_h / h
+	if native:
+		k = float(Rigs.RIGS[sprite_id].get("scale", 1.0))
 	spr.scale = Vector2(k, k)
 	spr.set_meta("base_scale", k)
 	p.add_child(spr)
@@ -209,6 +338,8 @@ func _free_person(p: Node2D) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if rain.visible:
+		_move_rain(delta)
 	for p in _walkers.keys():
 		if not is_instance_valid(p):
 			_walkers.erase(p)

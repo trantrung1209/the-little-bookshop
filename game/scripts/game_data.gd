@@ -121,6 +121,43 @@ const CUSTOMERS := [
 		],
 	},
 	{
+		"name": "Cô Liên",
+		"sprite": "co_lien",
+		"hint": "Sổ của ông: cô Liên – cô giáo dạy văn trường đầu phố, mê thơ, thích chuyện có hậu.",
+		"visits": [
+			{
+				"lines": ["Chào cháu. Cô là Liên, ngày trước dạy văn ở trường cấp hai đầu phố.", "Lâu lắm rồi cô mới bước vào tiệm này."],
+				"request": "Cháu tìm giúp cô một cuốn đọc cho thư thái, kiểu chuyện ngày xưa ấy.",
+				"want": ["hồi ức", "chữa lành"],
+				"avoid": ["kinh dị"],
+				"great": "Đúng giọng văn cô thích. Như được về lại lớp học cũ.",
+				"ok": "Cũng được, để cô đọc thử.",
+				"miss": "Cuốn này... không hợp với bà già này lắm.",
+				"page": "Ông ghi: Cô Liên năm nào cũng mua sách tặng học trò nghèo. Có năm hết tiền, cô bán lại cho ông tập thơ chép tay bìa xanh của mình.",
+			},
+			{
+				"lines": ["Cô có chuyện này muốn hỏi.", "Hồi trước cô có bán cho ông cháu một tập thơ chép tay, bìa xanh. Cô tiếc mãi."],
+				"request": "Trong lúc chờ, cháu tìm cho cô cuốn nào về gia đình, đọc cho ấm lòng.",
+				"want": ["gia đình", "hy vọng"],
+				"avoid": ["bi kịch"],
+				"great": "Ấm lòng thật. Cảm ơn cháu.",
+				"ok": "Ừ, cô cảm ơn.",
+				"miss": "Buồn quá cháu ạ, thôi để hôm khác.",
+				"page": "Ông ghi: Tập thơ bìa xanh của cô Liên, ông không bán cho ai. Cất dưới đáy kệ lịch sử, chờ ngày cô quay lại.",
+			},
+			{
+				"lines": ["Cháu ơi... cô nghe nói dưới đáy kệ lịch sử có một tập thơ bìa xanh?", "Ông cháu giữ nó suốt bao năm..."],
+				"request": "Hôm nay cô muốn một cuốn về tình bạn, về những người giữ lời hứa.",
+				"want": ["tình bạn", "hồi ức"],
+				"avoid": [],
+				"great": "Tập thơ của cô đây rồi... Ông cháu giữ lời thật. Cô sẽ đọc lại cho lũ học trò cũ nghe.",
+				"ok": "Cảm ơn cháu, cô đọc thử.",
+				"miss": "Thôi, để lần sau cô tìm.",
+				"page": "Trang mới: Đã trả tập thơ bìa xanh cho cô Liên. Cô hứa mỗi tháng ghé đọc thơ cho trẻ con trong phố.",
+			},
+		],
+	},
+	{
 		"name": "Một chàng trai",
 		"sprite": "walkin_young_man",
 		"color": "2980b9",
@@ -172,6 +209,43 @@ const CUSTOMERS := [
 		],
 	},
 	{
+		"name": "Bé Thỏ",
+		"sprite": "be_tho",
+		"hint": "Sổ của ông: Hằng – con bé nhà bán xôi đầu ngõ, mê truyện tranh, sợ tối.",
+		"visits": [
+			{
+				"lines": ["Con chào ạ! Con là Thỏ, con bảy tuổi rồi.", "Mẹ con bán xôi ngoài đầu ngõ, mẹ cho con vào xem sách."],
+				"request": "Ở đây có sách nào vui vui, có con vật không ạ?",
+				"want": ["thiếu nhi", "hài hước"],
+				"avoid": ["kinh dị", "bi kịch"],
+				"great": "Hihi, buồn cười quá! Con cảm ơn ạ!",
+				"ok": "Dạ... con xem thử.",
+				"miss": "Sách này... không có hình con vật ạ.",
+				"page": "Ông ghi: Cái Hằng nhà bán xôi đầu ngõ hay sang xin xem truyện tranh. Con bé sợ tối, ông để đèn bàn sáng cho nó đọc.",
+			},
+			{
+				"lines": ["Tối qua mất điện, con sợ lắm.", "Mẹ phải đọc truyện cho con nghe con mới ngủ được."],
+				"request": "Có truyện nào về bạn nhỏ dũng cảm không ạ? Con muốn hết sợ tối.",
+				"want": ["can đảm", "thiếu nhi"],
+				"avoid": ["kinh dị"],
+				"great": "Bạn nhỏ trong truyện không sợ tối! Con cũng sẽ không sợ nữa!",
+				"ok": "Dạ, con cảm ơn.",
+				"miss": "Truyện này... con hơi sợ ạ.",
+				"page": "Ông ghi: Hằng lớn rồi, hết sợ tối. Nó bảo nhờ cuốn truyện ông tặng năm nó lên bảy. Ông vẫn giữ một cuốn giống hệt trong ngăn kéo.",
+			},
+			{
+				"lines": ["Mẹ con kể hồi bé mẹ cũng được ông chủ tiệm tặng sách.", "Mẹ con tên là Hằng đấy ạ!"],
+				"request": "Con muốn một cuốn thật vui, để tối đọc cùng mẹ ạ.",
+				"want": ["gia đình", "hài hước"],
+				"avoid": ["bi kịch"],
+				"great": "Con sẽ chạy ra khoe mẹ ngay! Con cảm ơn ạ!",
+				"ok": "Dạ, con cảm ơn.",
+				"miss": "Mẹ con chắc không thích cuốn này đâu ạ.",
+				"page": "Trang mới: Bé Thỏ là con của Hằng. Mẹ con bé nhận ra chiếc ngăn kéo ông vẫn để cuốn truyện ngày xưa, và đã khóc.",
+			},
+		],
+	},
+	{
 		"name": "Một ông chồng",
 		"sprite": "walkin_husband",
 		"color": "c0392b",
@@ -183,4 +257,113 @@ const CUSTOMERS := [
 		"ok": "Hy vọng bà ấy thích.",
 		"miss": "Kết buồn thì tôi tiêu mất...",
 	},
+	{
+		"name": "Chú Đức",
+		"sprite": "chu_duc",
+		"hint": "Sổ của ông: Đức – thợ sửa xe đầu hẻm, ít nói, ngại chữ nghĩa.",
+		"visits": [
+			{
+				"lines": ["...Chào. Tôi là Đức, sửa xe đạp ở đầu hẻm.", "Tôi ít đọc sách lắm. Chữ nghĩa với tôi khó."],
+				"request": "Có cuốn nào dễ đọc, vui vui không? Đọc cho đỡ buồn ngủ lúc vắng khách.",
+				"want": ["hài hước", "phiêu lưu"],
+				"avoid": ["lịch sử", "bi kịch"],
+				"great": "Ha, đọc được! Cuốn này dễ hiểu thật.",
+				"ok": "Để tôi thử...",
+				"miss": "Chữ nhiều quá, tôi chịu.",
+				"page": "Ông ghi: Thằng Đức hồi nhỏ hay đứng nép ngoài cửa nhìn vào kệ sách. Hỏi thì nó bảo nó không biết đọc.",
+			},
+			{
+				"lines": ["Tôi đọc xong rồi đấy. Mất ba tuần, nhưng xong.", "Thằng con tôi bảo bố giỏi."],
+				"request": "Giờ tôi muốn đọc chuyện về người dám làm việc khó. Đọc cho có động lực.",
+				"want": ["can đảm", "hy vọng"],
+				"avoid": ["kinh dị"],
+				"great": "Cuốn này hay. Tôi sẽ đọc to cho thằng con nghe.",
+				"ok": "Ừ, để tôi đọc dần.",
+				"miss": "Cuốn này... không hợp với tôi lắm.",
+				"page": "Ông ghi: Tối nào Đức cũng ra ngồi bậc tiệm. Ông dạy nó đánh vần, đổi lại nó sửa xe đạp không lấy tiền.",
+			},
+			{
+				"lines": ["Ông chủ tiệm cũ là người dạy tôi đọc chữ đấy.", "Giờ tôi muốn đọc cho đàng hoàng một cuốn sách dày."],
+				"request": "Cho tôi một cuốn về chuyện xưa, chuyện có thật. Dày cũng được.",
+				"want": ["lịch sử", "hồi ức"],
+				"avoid": [],
+				"great": "Dày thật... nhưng giờ tôi đọc được rồi. Cảm ơn ông. Cảm ơn tiệm.",
+				"ok": "Được, tôi sẽ đọc.",
+				"miss": "Chưa phải cuốn tôi muốn.",
+				"page": "Trang mới: Chú Đức đã đọc xong cuốn sách dày đầu tiên. Chú treo tấm bảng ở tiệm xe: 'Ai muốn học chữ, cứ hỏi.'",
+			},
+		],
+	},
 ]
+
+## Sua sang tiem. kind "clean" = don dep (phai xong het 3 viec don dep moi trang tri duoc).
+## Tac dung: "charm" = suc hut (khach toi nhanh hon), "tip" = them tien moi luot tu van,
+## "close" = gio dong cua (tinh bang phut: 1080 = 18:00).
+## "pos" = diem giua-day cua hinh trong khong gian anh nen 1920x1080.
+const UPGRADES := [
+	{"id": "webs", "kind": "clean", "name": "Quét mạng nhện", "desc": "Khách bớt ngại bước vào.", "price": 15, "charm": 1},
+	{"id": "dust", "kind": "clean", "name": "Lau bụi kệ sách", "desc": "Sách sạch sẽ, khách tới đông hơn.", "price": 25, "charm": 1},
+	{"id": "bulb", "kind": "clean", "name": "Thay bóng đèn, lau kính", "desc": "Tiệm sáng sủa, khách tới đông hơn.", "price": 35, "charm": 1},
+	{"id": "sign", "kind": "decor", "name": "Bảng phấn trước cửa", "desc": "Người qua đường ghé vào nhiều hơn.", "price": 60, "charm": 1, "sprite": "decor_sign", "pos": Vector2(1530, 958)},
+	{"id": "plant", "kind": "decor", "name": "Chậu trầu bà", "desc": "Góc tiệm xanh mát, khách tới nhanh hơn.", "price": 80, "charm": 1, "sprite": "decor_plant", "pos": Vector2(445, 958)},
+	{"id": "mat", "kind": "decor", "name": "Chiếu cói trước kệ", "desc": "Khách nán lại lâu hơn: +2 tiền mỗi lượt.", "price": 100, "tip": 2, "sprite": "decor_mat", "pos": Vector2(945, 1050)},
+	{"id": "radio", "kind": "decor", "name": "Đài cát-sét", "desc": "Nhạc xưa làm khách vui: +3 tiền mỗi lượt.", "price": 120, "tip": 3, "sprite": "decor_radio", "pos": Vector2(578, 708)},
+	{"id": "lanterns", "kind": "decor", "name": "Dây đèn lồng", "desc": "Tiệm mở cửa tới 18:00.", "price": 150, "close": 1080, "sprite": "decor_lanterns", "pos": Vector2(1690, 250)},
+]
+
+## Sach hiem: chi co khi mua tu nguoi ban sach cu (chu Ba ve chai).
+const RARE_BOOKS := [
+	{"title": "Gánh Hàng Rong Phố Cũ", "genre": "Tiểu thuyết", "tags": ["hồi ức", "gia đình", "hy vọng"]},
+	{"title": "Bóng Đèn Dầu", "genre": "Tiểu thuyết", "tags": ["hồi ức", "cô đơn", "chữa lành"]},
+	{"title": "Mật Mã Trên Tờ Lịch", "genre": "Trinh thám", "tags": ["bí ẩn", "lịch sử", "phiêu lưu"]},
+	{"title": "Tiếng Gõ Cửa Lúc Nửa Đêm", "genre": "Trinh thám", "tags": ["kinh dị", "bí ẩn", "cô đơn"]},
+	{"title": "Bến Cảng Năm Ấy", "genre": "Lịch sử", "tags": ["lịch sử", "can đảm", "hồi ức"]},
+	{"title": "Phố Nghề Xưa", "genre": "Lịch sử", "tags": ["lịch sử", "gia đình", "tình bạn"]},
+	{"title": "Con Diều Giấy Màu Đỏ", "genre": "Thiếu nhi", "tags": ["thiếu nhi", "tình bạn", "hy vọng"]},
+	{"title": "Cậu Bé Bán Kem", "genre": "Thiếu nhi", "tags": ["thiếu nhi", "hài hước", "can đảm"]},
+	{"title": "Thư Tình Không Gửi", "genre": "Tiểu thuyết", "tags": ["tình yêu", "bi kịch", "hồi ức"]},
+	{"title": "Đôi Bạn Trên Chuyến Tàu Đêm", "genre": "Tiểu thuyết", "tags": ["tình bạn", "phiêu lưu", "hài hước"]},
+]
+const RARE_PRICE := 20      # gia mot cuon sach hiem (duoc 2 cuon, mo khoa de nhap tiep)
+
+## Doc vi khach: cach khach noi ve tung chu de khi duoc hoi.
+const TAG_LIKE := {
+	"hồi ức": "gợi nhớ chuyện ngày xưa", "tình yêu": "có chút chuyện tình", "bi kịch": "day dứt, đọc xong còn nghĩ mãi",
+	"chữa lành": "đọc xong thấy nhẹ lòng", "gia đình": "về người thân trong nhà", "hy vọng": "có cái kết tươi sáng",
+	"bí ẩn": "có bí mật cần khám phá", "cô đơn": "về những người lặng lẽ một mình", "phiêu lưu": "được đi đây đi đó",
+	"kinh dị": "rùng rợn một chút", "lịch sử": "về chuyện xưa có thật", "can đảm": "về người dám làm điều khó",
+	"thiếu nhi": "dành cho trẻ con", "hài hước": "đọc là bật cười", "tình bạn": "về những người bạn",
+}
+const TAG_AVOID := {
+	"hồi ức": "toàn chuyện cũ buồn buồn", "tình yêu": "yêu đương sướt mướt", "bi kịch": "kết buồn",
+	"chữa lành": "triết lý nhẹ nhàng", "gia đình": "chuyện gia đình", "hy vọng": "quá màu hồng",
+	"bí ẩn": "đánh đố khó hiểu", "cô đơn": "u ám cô đơn", "phiêu lưu": "đi xa mạo hiểm",
+	"kinh dị": "ma quỷ rùng rợn", "lịch sử": "khô khan sách sử", "can đảm": "gồng mình quá sức",
+	"thiếu nhi": "con nít quá", "hài hước": "cợt nhả", "tình bạn": "chuyện bạn bè",
+}
+
+## Lich tuan: ngay 1 la Thu Hai.
+const WEEKDAYS := ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"]
+const WEEKDAYS_SHORT := ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
+const WEEK_EVENTS := {
+	2: "Ngày giao sách: nhập sách chỉ 6 tiền một cuốn.",
+	5: "Cuối tuần: khách ghé đông hơn.",
+	6: "Chợ sách cũ: chú Ba ve chai ghé tiệm bán sách hiếm.",
+}
+const WEATHER_NAMES := {"sun": "Nắng", "cloud": "Nhiều mây", "rain": "Mưa"}
+
+## Danh hieu (thu thap). Moi danh hieu dat duoc thuong 10 tien.
+const ACHIEVEMENTS := [
+	{"id": "first", "name": "Mở hàng", "desc": "Bán cuốn sách đầu tiên."},
+	{"id": "hits10", "name": "Người hiểu khách", "desc": "Tư vấn trúng ý 10 lần."},
+	{"id": "sold30", "name": "Tiệm đắt hàng", "desc": "Bán 30 cuốn sách."},
+	{"id": "genres", "name": "Đủ mọi thể loại", "desc": "Bán được cả 4 thể loại sách."},
+	{"id": "mystery10", "name": "Mê trinh thám", "desc": "Bán 10 cuốn trinh thám."},
+	{"id": "noask5", "name": "Mắt tinh", "desc": "Đoán trúng ý 5 lần mà không cần hỏi."},
+	{"id": "rare5", "name": "Nhà sưu tầm", "desc": "Sưu tầm 5 cuốn sách hiếm."},
+	{"id": "clean", "name": "Sạch như mới", "desc": "Dọn dẹp xong tiệm."},
+	{"id": "decor", "name": "Tiệm khang trang", "desc": "Mua đủ đồ trang trí."},
+	{"id": "week", "name": "Tròn một tuần", "desc": "Mở tiệm đủ 7 ngày."},
+	{"id": "pages", "name": "Đọc hết sổ của ông", "desc": "Mở hết các trang sổ."},
+]
+const ACHIEVEMENT_REWARD := 10

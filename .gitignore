@@ -18,3 +18,8 @@ Godot_*.zip
 
 # File nhac goc qua nang (ban dung trong game nam o game/assets/audio)
 art_goc/*.wav
+
+# Godot Android build template (rat nang, tu tao lai duoc)
+game/android/
+# Khoa ky ban phat hanh: TUYET DOI khong dua len GitHub
+*.jks

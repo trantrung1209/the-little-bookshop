@@ -15,6 +15,8 @@ var _current := ""
 var _sfx: Array = []
 var _sfx_next := 0
 var _cache := {}
+var _amb: AudioStreamPlayer   # tieng nen (mua...)
+var _amb_name := ""
 
 
 func _ready() -> void:
@@ -24,6 +26,9 @@ func _ready() -> void:
 		p.volume_db = -80.0
 		add_child(p)
 		_music.append(p)
+	_amb = AudioStreamPlayer.new()
+	_amb.volume_db = -80.0
+	add_child(_amb)
 	for i in 6:
 		var s := AudioStreamPlayer.new()
 		add_child(s)
@@ -94,3 +99,25 @@ func sfx(sound: String, volume: float = 1.0, pitch_jitter: float = 0.05) -> void
 	p.volume_db = linear_to_db(v)
 	p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)  # moi lan nghe hoi khac, bot nham chan
 	p.play()
+
+
+## Tieng nen lap lai (vd. "rain" -> amb_rain.ogg). Chuoi rong = tat.
+func play_ambience(track: String) -> void:
+	if track == _amb_name:
+		return
+	_amb_name = track
+	var tw := create_tween()
+	if track == "":
+		tw.tween_property(_amb, "volume_db", -80.0, FADE)
+		tw.tween_callback(_amb.stop)
+		return
+	var st := _load(DIR + "amb_%s.ogg" % track)
+	if st == null:
+		return
+	if st is AudioStreamOggVorbis:
+		(st as AudioStreamOggVorbis).loop = true
+	_amb.stream = st
+	_amb.volume_db = -80.0
+	_amb.play()
+	var v := _sfx_linear() * 0.5
+	tw.tween_property(_amb, "volume_db", linear_to_db(v) if v > 0.0 else -80.0, FADE)

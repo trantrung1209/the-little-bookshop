@@ -9,3 +9,5 @@ CC0: duoc dung tu do ke ca ban thuong mai, khong bat buoc ghi ten
 
 door_bell, coin, page_flip, click, book_place, new_page (.wav):
 tu tao bang code (tong hop am thanh), thuoc ve du an.
+
+amb_rain.ogg = tieng mua tu tao bang code
