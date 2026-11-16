@@ -23,3 +23,12 @@ art_goc/*.wav
 game/android/
 # Khoa ky ban phat hanh: TUYET DOI khong dua len GitHub
 *.jks
+
+# Khoa ky iOS - khong bao gio dua len git
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
+*.key
+AuthKey_*
