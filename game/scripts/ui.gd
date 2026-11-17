@@ -1681,10 +1681,14 @@ func _build_tutorial() -> void:
 func show_tutorial(text: String, target: Control) -> void:
 	_tut_target = target
 	tut_label.text = text
+	# Dat be ngang cho chu TRUOC khi do chieu cao. Lan hien dau tien Label chua co be ngang
+	# nen xuong dong tung chu -> khung vang cao vot, trong rong (loi thay tren iPhone).
+	tut_label.size = Vector2(388.0, 0.0)
 	tut_box.size = Vector2.ZERO  # tinh lai chieu cao theo chu
 	tut_frame.move_to_front()
 	tut_box.move_to_front()
 	_place_tutorial()
+	call_deferred("_place_tutorial")  # do lai sau khi Godot sap xep xong
 
 
 func hide_tutorial() -> void:
@@ -1715,6 +1719,7 @@ func _place_tutorial() -> void:
 	tut_frame.modulate.a = 0.55 + 0.45 * sin(_tut_t * 5.0)
 	var vs := get_viewport().get_visible_rect().size
 	var bs := tut_box.get_combined_minimum_size()
+	tut_box.size = bs  # luon co lai vua chu, khong de khung phinh to
 	var x := clampf(r.position.x + r.size.x / 2.0 - bs.x / 2.0, 12.0, vs.x - bs.x - 12.0)
 	var y := r.position.y - bs.y - 14.0  # uu tien dat phia tren nut
 	if y < 80.0:
